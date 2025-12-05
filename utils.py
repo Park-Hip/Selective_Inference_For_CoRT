@@ -72,7 +72,6 @@ def compute_lasso_interval(X, a, b, alpha_val, z_obs):
   y = a + b * z_obs
   clf = Lasso(alpha=alpha_val, fit_intercept=False, max_iter=100000, tol=1e-12)
   clf.fit(X, y.flatten())
-  coef = clf.coef_
 
   # 2. Extract Active Set (M) and Signs (s)
   active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]
@@ -84,7 +83,7 @@ def compute_lasso_interval(X, a, b, alpha_val, z_obs):
   R_model = np.inf
 
   # if m > 0:
-  #   resid = y.flatten() - X @ coef
+  #   resid = y.flatten() - X @ clf.coef_
   #   # Calculate correlation on ACTIVE features (should be equal to lambda)
   #   correlations = np.abs(X[:, active_indices].T @ resid)
   #   lambda_val = np.mean(correlations)
@@ -96,9 +95,9 @@ def compute_lasso_interval(X, a, b, alpha_val, z_obs):
 
   lambda_val = n * alpha_val
 
-  # Safety check for numerical zero (prevent divide by zero)
-  if lambda_val < 1e-10:
-    lambda_val = 1e-10
+  # # Safety check for numerical zero (prevent divide by zero)
+  # if lambda_val < 1e-10:
+  #   lambda_val = 1e-10
 
   X_M = X[:, active_indices]
   X_Mc = X[:, inactive_indices]
@@ -187,6 +186,109 @@ def get_Z_train(z_obs, folds, source_data, a_global, b_global, lamda, K, T):
       R_final = min(R_final, R_aug)
 
   return L_final, R_final
+
+def get_u_v(X, a, b, z_obs, alpha_val):
+  n, p = X.shape
+  a = a.reshape(-1, 1)
+  b = b.reshape(-1, 1)
+
+  y = a + b * z_obs
+  clf = Lasso(alpha=alpha_val, fit_intercept=False, tol=0.0001, max_iter=10000)
+  clf.fit(X, y.flatten())
+
+  active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]
+  inactive_indices = [idx for idx, coef in enumerate(clf.coef_) if coef == 0]
+  m = len(active_indices)
+
+  u_full = np.zeros((p, 1))
+  v_full = np.zeros((p, 1))
+
+  X_M = X[:, active_indices]
+  X_Mc = X[:, inactive_indices]
+  s_M = np.sign(clf.coef_[active_indices]).reshape(-1, 1)
+
+  lambda_val = alpha_val * n
+
+  u_active = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ a - lambda_val * s_M)
+  v_active = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ b)
+
+  u_full[active_indices] = u_active
+  v_full[active_indices] = v_active
+
+  return u_full, v_full
+
+def get_loss_coefs(a_val, b_val, u, v, X_val):
+  """
+    Calculates coefficients for ||psi + omega*z||^2
+  """
+  a_val = a_val.reshape(-1, 1)
+  b_val = b_val.reshape(-1, 1)
+
+  phi = a_val - X_val @ u
+  omega = b_val - X_val @ v
+
+  C2 = (omega.T @ omega).item()
+  C1 = 2 * (phi.T @ omega).item()
+  C0 = (phi.T @ phi).item()
+
+  return C2, C1, C0
+
+def solve_quadratic_interval(A, B, C, z_obs):
+  roots = np.roots([A, B, C])
+  real_roots = sorted([r.real for r in roots if np.isreal(r)])
+
+  L = -np.inf
+  R = np.inf
+
+  for r in real_roots:
+    if r < z_obs:
+      L = max(L, r)
+    elif r > z_obs:
+      R = min(R, r)
+
+  return L, R
+
+def get_Z_val(folds, T, K, a_global, b_global, z_obs, alpha_val, source_data):
+  L_final = - np.inf
+  R_final = np.inf
+
+  fold_indices = []
+  start = 0
+  for f in folds:
+    size = f["X"].shape[0]
+    fold_indices.append(np.arange(start, start + size))
+    start += size
+
+  for t in range(T):
+    X_train_list = [folds[i]["X"] for i in range(T) if i != t]
+    X_target_train = np.vstack(X_train_list)
+    train_indices = [fold_indices[i] for i in range(T) if i!= t]
+    X_base_train, a_base_train, b_base_train = get_affine_params(X_target_train, train_indices, a_global, b_global)
+    u_base, v_base = get_u_v(X_base_train, a_base_train, b_base_train, z_obs, alpha_val)
+
+    X_val = folds[t]["X"]
+    val_indices = fold_indices[t]
+    _, a_base_val, b_base_val = get_affine_params(X_val, val_indices, a_global, b_global)
+    C2_base, C1_base, C0_base = get_loss_coefs(a_base_val, b_base_val,  u_base, v_base, X_val)
+
+    for k in range(K):
+      source_data_k = source_data[k]
+      X_aug_train, a_aug_train, b_aug_train = get_affine_params(X_target_train, train_indices, a_global, b_global, source_data_k)
+      u_aug, v_aug = get_u_v(X_aug_train, a_aug_train, b_aug_train, z_obs, alpha_val)
+      C2_aug, C1_aug, C0_aug = get_loss_coefs(a_base_val, b_base_val, u_aug, v_aug, X_val)
+
+      A_dif = C2_aug - C2_base
+      B_dif = C1_aug - C1_base
+      C_dif = C0_aug - C0_base
+
+      L_vote, R_vote = solve_quadratic_interval(A_dif, B_dif, C_dif, z_obs)
+      L_final = max(L_final, L_vote)
+      R_final = min(R_final, R_vote)
+
+  return L_final, R_final
+
+
+
 
 
 
