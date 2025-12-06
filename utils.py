@@ -1,9 +1,7 @@
 import numpy as np
-from sklearn.linear_model import LassoCV, Lasso
-from sklearn.model_selection import KFold
-from sklearn.metrics import mean_squared_error
-import pandas as pd
+from sklearn.linear_model import Lasso
 import math
+from scipy.stats import norm
 
 def split_target(T, X_target, y_target, n_target):
   folds = []
@@ -70,7 +68,7 @@ def compute_lasso_interval(X, a, b, alpha_val, z_obs):
   # 1. Fit Lasso at z_obs to get the "Truth" (Active Set & Signs)
   n, p =  X.shape
   y = a + b * z_obs
-  clf = Lasso(alpha=alpha_val, fit_intercept=False, max_iter=100000, tol=1e-12)
+  clf = Lasso(alpha=alpha_val, fit_intercept=False, tol=1e-8, max_iter=1000000  )
   clf.fit(X, y.flatten())
 
   # 2. Extract Active Set (M) and Signs (s)
@@ -193,7 +191,7 @@ def get_u_v(X, a, b, z_obs, alpha_val):
   b = b.reshape(-1, 1)
 
   y = a + b * z_obs
-  clf = Lasso(alpha=alpha_val, fit_intercept=False, tol=0.0001, max_iter=10000)
+  clf = Lasso(alpha=alpha_val, fit_intercept=False, tol=1e-8, max_iter=1000000)
   clf.fit(X, y.flatten())
 
   active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]
@@ -286,6 +284,109 @@ def get_Z_val(folds, T, K, a_global, b_global, z_obs, alpha_val, source_data):
       R_final = min(R_final, R_vote)
 
   return L_final, R_final
+
+def get_Z_CoRT(X_combined, similar_source_index, alpha_val, a_global, b_global, source_data, z_obs):
+  a_CoRT_list = []
+  b_CoRT_list = []
+
+  for k in similar_source_index:
+    y_k = source_data[k]["y"].ravel()
+    a_CoRT_list.append(y_k)
+    b_CoRT_list.append(np.zeros(len(y_k)))
+
+  a_CoRT_list.append(a_global.ravel())
+  b_CoRT_list.append(b_global.ravel())
+
+  a_CoRT = np.hstack(a_CoRT_list)
+  b_CoRT = np.hstack(b_CoRT_list)
+
+  a_CoRT = a_CoRT.reshape(-1,1)
+  b_CoRT = b_CoRT.reshape(-1,1)
+
+  y_combined = a_CoRT + b_CoRT * z_obs
+
+  n, p = X_combined.shape
+
+  clf = Lasso(alpha=alpha_val, fit_intercept=False, tol=1e-8, max_iter=1000000)
+  clf.fit(X_combined, y_combined)
+
+  active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]
+  inactive_indices = [idx for idx, coef in enumerate(clf.coef_) if coef == 0]
+
+  L_CoRT = -np.inf
+  R_CoRT = np.inf
+
+  lambda_val = n * alpha_val
+
+  X_M = X_combined[:, active_indices]
+  X_Mc = X_combined[:, inactive_indices]
+  s_M = np.sign(clf.coef_[active_indices]).reshape(-1, 1)
+
+  P_M = X_M @ np.linalg.pinv(X_M.T @ X_M) @ X_M.T
+  u = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ a_CoRT - lambda_val * s_M)
+  v = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ b_CoRT)
+  p = (1 / lambda_val) * X_Mc.T @ (np.eye(n) - P_M) @ a_CoRT + X_Mc.T @ X_M @ np.linalg.pinv(X_M.T @ X_M) @ s_M
+  q = (1 / lambda_val) * X_Mc.T @ (np.eye(n) - P_M) @ b_CoRT
+
+  # 4. Construct Inequalities (Psi * z <= Gamma)
+
+  # Constraint 1: Sign Consistency (-diag(s)*v*z < diag(s)*u)
+  # A1 * z <= B1
+  A1 = - np.diag(s_M.flatten()) @ v
+  B1 = np.diag(s_M.flatten()) @ u
+
+  # Constraint 2: Inactive Stationarity (|s_Mc| < 1)
+  # q*z <= 1-p  AND  -q*z <= 1+p
+  ones = np.ones((len(inactive_indices), 1))
+
+  # q*z <= 1 - p
+  A2 = q
+  B2 = ones - p
+
+  # -q*z <= 1 + p
+  A3 = -q
+  B3 = ones + p
+
+  A = np.concatenate([A1.flatten(), A2.flatten(), A3.flatten()])
+  B = np.concatenate([B1.flatten(), B2.flatten(), B3.flatten()])
+
+  # 5. Solve for Interval [L, R]
+  # For each inequality A_i * z <= B_i:
+  # If A_i > 0: z <= B_i / A_i  (Upper Bound)
+  # If A_i < 0: z >= B_i / A_i  (Lower Bound)
+
+  pos_idx = A > 1e-9
+  if np.any(pos_idx):
+    upper_bound = B[pos_idx] / A[pos_idx]
+    R_CoRT = np.min(upper_bound)
+
+  neg_idx = A < -1e-9
+  if np.any(neg_idx):
+    lower_bound = B[neg_idx] / A[neg_idx]
+    L_CoRT = np.max(lower_bound)
+
+  return L_CoRT, R_CoRT
+
+def combine_Z(L_train, R_train, L_val, R_val, L_CoRT, R_CoRT):
+  L = [L_train, L_val, L_CoRT]
+  R = [R_train, R_val, R_CoRT]
+
+  L_final = max(L)
+  R_final = min(R)
+
+  return L_final, R_final
+
+def computed_truncated_cdf(L, R, z_obs, mu, sigma):
+  normalized_L = (L-mu)/sigma
+  normalized_R = (R-mu)/sigma
+  normalized_z_obs = (z_obs-mu)/sigma
+
+  truncated_cdf = (norm.cdf(normalized_z_obs, loc=0, scale=1) - norm.cdf(normalized_L, loc=0, scale=1))/(norm.cdf(normalized_R, loc=0, scale=1) - norm.cdf(normalized_L, loc=0, scale=1))
+
+  return truncated_cdf
+
+
+
 
 
 

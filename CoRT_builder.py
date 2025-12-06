@@ -1,11 +1,12 @@
 import numpy as np
-from sklearn.linear_model import LassoCV
+from sklearn.linear_model import LassoCV, Lasso
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
 
 class CoRT:
-    def __init__(self):
-        pass
+    def __init__(self, use_LassoCV=False, alpha=0.1):
+        self.use_LassoCV = use_LassoCV;
+        self.alpha = alpha if alpha else 0.1
 
     def gen_data(self, n_target, n_source, p, K, Ka, h, s_vector, s, cov_type):
         """
@@ -71,7 +72,7 @@ class CoRT:
 
         return target_data, source_data
 
-    def find_similar_source(self, n_target, K, target_data, source_data, T=5):
+    def find_similar_source(self, n_target, K, target_data, source_data, T=5, verbose=False):
         """
         Find similar sources using Adaptive Co-Regularization Detection (Algorithm 1)
 
@@ -106,14 +107,20 @@ class CoRT:
                 X_test = X_target[test_idx]
                 y_test = y_target[test_idx].ravel()
 
-                model_0 = LassoCV(cv=5, fit_intercept=True, random_state=42, n_jobs=-1)
+                if self.use_LassoCV:
+                    model_0 = LassoCV(cv=5, fit_intercept=True, random_state=42, n_jobs=-1)
+                else:
+                    model_0 = Lasso(alpha=self.alpha, fit_intercept=False, random_state=42)
                 model_0.fit(X_train, y_train)
                 pred_0 = model_0.predict(X_test)
 
                 X_train_0k = np.vstack([X_train, X_source_k])
                 y_train_0k = np.concatenate([y_train, y_source_k])
 
-                model_0k = LassoCV(cv=5, fit_intercept=True, random_state=42, n_jobs=-1)
+                if self.use_LassoCV:
+                    model_0k = LassoCV(cv=5, fit_intercept=True, random_state=42, n_jobs=-1)
+                else:
+                    model_0k = Lasso(alpha=self.alpha, fit_intercept=True, random_state=42)
                 model_0k.fit(X_train_0k, y_train_0k)
                 pred_0k = model_0k.predict(X_test)
 
@@ -126,7 +133,8 @@ class CoRT:
             if count >= threshold:
                 similar_source_index.append(k)
 
-        print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
+        if verbose:
+            print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
         return similar_source_index
 
     def prepare_CoRT_data(self, similar_source_index, source_data, target_data):

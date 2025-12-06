@@ -3,4 +3,5 @@ numpy
 pandas
 stats
 matplotlib
+scipy
 seaborn
