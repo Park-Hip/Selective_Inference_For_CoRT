@@ -2,11 +2,12 @@ import numpy as np
 from sklearn.linear_model import LassoCV, Lasso
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
+import utils
 
 class CoRT:
     def __init__(self, use_LassoCV=False, alpha=0.1):
         self.use_LassoCV = use_LassoCV;
-        self.alpha = alpha if alpha else 0.1
+        self.alpha = alpha
 
     def gen_data(self, n_target, n_source, p, K, Ka, h, s_vector, s, cov_type):
         """
@@ -65,7 +66,8 @@ class CoRT:
                 idx_random = np.random.choice(np.arange(2 * s, p), size=s, replace=False)
                 active_indices = np.concatenate([idx_shift, idx_random])
                 beta_k[active_indices] = 0.5
-                beta_k = beta_k + (2 * h / p) * np.random.choice([-1, 1], size=(p, 1))
+                beta_k = beta_k + (2 * h / p) * np.random.choice([-1, 1], size=(p, 1)) ################
+                ## beta_k = beta_k + (10 * h / p) * np.random.choice([-1, 1], size=(p, 1))
                 y_k = X_k @ beta_k + np.random.randn(n_source, 1) + 0.5
 
             source_data.append({"X": X_k, "y": y_k})
@@ -89,28 +91,38 @@ class CoRT:
         X_target = target_data["X"]
         y_target = target_data["y"]
 
+        # X_target = X_target - X_target.mean(axis=0) #########
+        # y_target = y_target - y_target.mean() #######
+
         similar_source_index = []
         threshold = (T + 1) / 2
 
-        kf = KFold(n_splits=T, shuffle=True, random_state=42)
-        splits = list(kf.split(X_target))
+        folds = utils.split_target(T, X_target, y_target, n_target)
 
         for k in range(K):
             source_k = source_data[k]
-            X_source_k, y_source_k = source_k["X"], source_k["y"]
-            y_source_k = y_source_k.ravel()
+            X_source_k = source_k["X"]
+            y_source_k = source_k["y"].ravel()
+
+            # X_source_k = X_source_k - X_source_k.mean(axis=0) #############
+            # y_source_k = y_source_k - y_source_k.mean() #################
             count = 0
 
-            for train_idx, test_idx in splits:
-                X_train = X_target[train_idx]
-                y_train = y_target[train_idx].ravel()
-                X_test = X_target[test_idx]
-                y_test = y_target[test_idx].ravel()
+            for t in range(T):
+                X_test = folds[t]["X"]
+                y_test = folds[t]["y"].ravel()
+
+                X_train_list = [folds[i]["X"] for i in range(T) if i != t]
+                y_train_list = [folds[i]["y"] for i in range(T) if i != t]
+
+                X_train = np.vstack(X_train_list)
+                y_train = np.concatenate(y_train_list).ravel()
 
                 if self.use_LassoCV:
-                    model_0 = LassoCV(cv=5, fit_intercept=True, random_state=42, n_jobs=-1)
+                    model_0 = LassoCV(cv=5, fit_intercept=False, random_state=42, n_jobs=-1)
                 else:
                     model_0 = Lasso(alpha=self.alpha, fit_intercept=False, random_state=42)
+
                 model_0.fit(X_train, y_train)
                 pred_0 = model_0.predict(X_test)
 
@@ -118,9 +130,10 @@ class CoRT:
                 y_train_0k = np.concatenate([y_train, y_source_k])
 
                 if self.use_LassoCV:
-                    model_0k = LassoCV(cv=5, fit_intercept=True, random_state=42, n_jobs=-1)
+                    model_0k = LassoCV(cv=5, fit_intercept=False, random_state=42, n_jobs=-1)
                 else:
-                    model_0k = Lasso(alpha=self.alpha, fit_intercept=True, random_state=42)
+                    model_0k = Lasso(alpha=self.alpha, fit_intercept=False, random_state=42)
+
                 model_0k.fit(X_train_0k, y_train_0k)
                 pred_0k = model_0k.predict(X_test)
 
@@ -133,9 +146,10 @@ class CoRT:
             if count >= threshold:
                 similar_source_index.append(k)
 
-        if verbose:
-            print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
-        return similar_source_index
+            if verbose:
+                print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
+
+            return similar_source_index
 
     def prepare_CoRT_data(self, similar_source_index, source_data, target_data):
         """

@@ -30,10 +30,10 @@ def construct_test_statistic(y, j, X_active):
   '''
   Compute test statistic direction etaj and its projection etajTy
   '''
-  n, p = X_active.shape
-  ej = np.zeros((p,1))
+  n, m = X_active.shape
+  ej = np.zeros((m,1))
   ej[j] = 1
-  etajT = ej.T @ np.linalg.pinv(X_active.T @ X_active) @ X_active.T
+  etajT = ej.T @ np.linalg.pinv(X_active.T @ X_active + 1e-6 * np.eye(m)) @ X_active.T #####
   etaj = etajT.T
   etajTy = etajT @ y
 
@@ -80,54 +80,55 @@ def compute_lasso_interval(X, a, b, alpha_val, z_obs):
   L_model = -np.inf
   R_model = np.inf
 
-  # if m > 0:
-  #   resid = y.flatten() - X @ clf.coef_
-  #   # Calculate correlation on ACTIVE features (should be equal to lambda)
-  #   correlations = np.abs(X[:, active_indices].T @ resid)
-  #   lambda_val = np.mean(correlations)
-  # else:
-  #   # If null model, lambda is effectively the active constraints boundary
-  #   # But for the inequalities, we use the theoretical max lambda from input
   #   # Standard relation: lambda_math = n * alpha_sklearn
   #   lambda_val = n * alpha_val
 
   lambda_val = n * alpha_val
 
-  # # Safety check for numerical zero (prevent divide by zero)
-  # if lambda_val < 1e-10:
-  #   lambda_val = 1e-10
+  if m == 0:
+    # If no features selected, we only check inactive stationarity: |X'y| <= lambda
+    # p = (1/lambda) X'a
+    # q = (1/lambda) X'b
+    p= (1 / lambda_val) * X.T @ a
+    q = (1 / lambda_val) * X.T @ b
 
-  X_M = X[:, active_indices]
-  X_Mc = X[:, inactive_indices]
-  s_M = np.sign(clf.coef_[active_indices]).reshape(-1,1)
+    # Constraints: -1 <= p + qz <= 1
+    # 1. qz <= 1 - p
+    # 2. -qz <= 1 + p
+    A = np.concatenate([q.flatten(), -q.flatten()])
+    B = np.concatenate([(1 - p).flatten(), (1 + p).flatten()])
+  else:
+    X_M = X[:, active_indices]
+    X_Mc = X[:, inactive_indices]
+    s_M = np.sign(clf.coef_[active_indices]).reshape(-1,1)
 
-  P_M = X_M @ np.linalg.pinv(X_M.T @ X_M) @ X_M.T
-  u = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ a - lambda_val * s_M)
-  v = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ b)
-  p = (1/lambda_val) * X_Mc.T @ (np.eye(n) - P_M) @ a + X_Mc.T @ X_M @ np.linalg.pinv(X_M.T @ X_M) @ s_M
-  q = (1/lambda_val) * X_Mc.T @ (np.eye(n) - P_M) @ b
+    P_M = X_M @ np.linalg.pinv(X_M.T @ X_M) @ X_M.T
+    u = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ a - lambda_val * s_M)
+    v = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ b)
+    p = (1/lambda_val) * X_Mc.T @ (np.eye(n) - P_M) @ a + X_Mc.T @ X_M @ np.linalg.pinv(X_M.T @ X_M) @ s_M
+    q = (1/lambda_val) * X_Mc.T @ (np.eye(n) - P_M) @ b
 
-  # 4. Construct Inequalities (Psi * z <= Gamma)
+    # 4. Construct Inequalities (Psi * z <= Gamma)
 
-  # Constraint 1: Sign Consistency (-diag(s)*v*z < diag(s)*u)
-  # A1 * z <= B1
-  A1 = - np.diag(s_M.flatten()) @ v
-  B1 = np.diag(s_M.flatten()) @ u
+    # Constraint 1: Sign Consistency (-diag(s)*v*z < diag(s)*u)
+    # A1 * z <= B1
+    A1 = - np.diag(s_M.flatten()) @ v
+    B1 = np.diag(s_M.flatten()) @ u
 
-  # Constraint 2: Inactive Stationarity (|s_Mc| < 1)
-  # q*z <= 1-p  AND  -q*z <= 1+p
-  ones = np.ones((len(inactive_indices), 1))
+    # Constraint 2: Inactive Stationarity (|s_Mc| < 1)
+    # q*z <= 1-p  AND  -q*z <= 1+p
+    ones = np.ones((len(inactive_indices), 1))
 
-  # q*z <= 1 - p
-  A2 = q
-  B2 = ones - p
+    # q*z <= 1 - p
+    A2 = q
+    B2 = ones - p
 
-  # -q*z <= 1 + p
-  A3 = -q
-  B3 = ones + p
+    # -q*z <= 1 + p
+    A3 = -q
+    B3 = ones + p
 
-  A = np.concatenate([A1.flatten(), A2.flatten(), A3.flatten()])
-  B = np.concatenate([B1.flatten(), B2.flatten(), B3.flatten()])
+    A = np.concatenate([A1.flatten(), A2.flatten(), A3.flatten()])
+    B = np.concatenate([B1.flatten(), B2.flatten(), B3.flatten()])
 
   # 5. Solve for Interval [L, R]
   # For each inequality A_i * z <= B_i:
@@ -201,17 +202,18 @@ def get_u_v(X, a, b, z_obs, alpha_val):
   u_full = np.zeros((p, 1))
   v_full = np.zeros((p, 1))
 
-  X_M = X[:, active_indices]
-  X_Mc = X[:, inactive_indices]
-  s_M = np.sign(clf.coef_[active_indices]).reshape(-1, 1)
+  if m > 0:
+    X_M = X[:, active_indices]
+    X_Mc = X[:, inactive_indices]
+    s_M = np.sign(clf.coef_[active_indices]).reshape(-1, 1)
 
-  lambda_val = alpha_val * n
+    lambda_val = alpha_val * n
 
-  u_active = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ a - lambda_val * s_M)
-  v_active = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ b)
+    u_active = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ a - lambda_val * s_M)
+    v_active = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ b)
 
-  u_full[active_indices] = u_active
-  v_full[active_indices] = v_active
+    u_full[active_indices] = u_active
+    v_full[active_indices] = v_active
 
   return u_full, v_full
 
@@ -260,7 +262,10 @@ def get_Z_val(folds, T, K, a_global, b_global, z_obs, alpha_val, source_data):
   for t in range(T):
     X_train_list = [folds[i]["X"] for i in range(T) if i != t]
     X_target_train = np.vstack(X_train_list)
-    train_indices = [fold_indices[i] for i in range(T) if i!= t]
+
+    train_indices_list = [fold_indices[i] for i in range(T) if i != t] ##
+    train_indices = np.concatenate(train_indices_list) ##
+
     X_base_train, a_base_train, b_base_train = get_affine_params(X_target_train, train_indices, a_global, b_global)
     u_base, v_base = get_u_v(X_base_train, a_base_train, b_base_train, z_obs, alpha_val)
 
@@ -312,43 +317,52 @@ def get_Z_CoRT(X_combined, similar_source_index, alpha_val, a_global, b_global, 
 
   active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]
   inactive_indices = [idx for idx, coef in enumerate(clf.coef_) if coef == 0]
+  m = len(active_indices)
 
   L_CoRT = -np.inf
   R_CoRT = np.inf
 
   lambda_val = n * alpha_val
 
-  X_M = X_combined[:, active_indices]
-  X_Mc = X_combined[:, inactive_indices]
-  s_M = np.sign(clf.coef_[active_indices]).reshape(-1, 1)
+  if m == 0:
+    # Inactive Constraints Only: |X'y| <= lambda
+    p = (1 / lambda_val) * X_combined.T @ a_CoRT
+    q = (1 / lambda_val) * X_combined.T @ b_CoRT
 
-  P_M = X_M @ np.linalg.pinv(X_M.T @ X_M) @ X_M.T
-  u = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ a_CoRT - lambda_val * s_M)
-  v = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ b_CoRT)
-  p = (1 / lambda_val) * X_Mc.T @ (np.eye(n) - P_M) @ a_CoRT + X_Mc.T @ X_M @ np.linalg.pinv(X_M.T @ X_M) @ s_M
-  q = (1 / lambda_val) * X_Mc.T @ (np.eye(n) - P_M) @ b_CoRT
+    A = np.concatenate([q.flatten(), -q.flatten()])
+    B = np.concatenate([(1 - p).flatten(), (1 + p).flatten()])
+  else:
+    X_M = X_combined[:, active_indices]
+    X_Mc = X_combined[:, inactive_indices]
+    s_M = np.sign(clf.coef_[active_indices]).reshape(-1, 1)
 
-  # 4. Construct Inequalities (Psi * z <= Gamma)
+    P_M = X_M @ np.linalg.pinv(X_M.T @ X_M) @ X_M.T
+    u = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ a_CoRT - lambda_val * s_M)
+    v = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ b_CoRT)
+    p = (1 / lambda_val) * X_Mc.T @ (np.eye(n) - P_M) @ a_CoRT + X_Mc.T @ X_M @ np.linalg.pinv(X_M.T @ X_M) @ s_M
+    q = (1 / lambda_val) * X_Mc.T @ (np.eye(n) - P_M) @ b_CoRT
 
-  # Constraint 1: Sign Consistency (-diag(s)*v*z < diag(s)*u)
-  # A1 * z <= B1
-  A1 = - np.diag(s_M.flatten()) @ v
-  B1 = np.diag(s_M.flatten()) @ u
+    # 4. Construct Inequalities (Psi * z <= Gamma)
 
-  # Constraint 2: Inactive Stationarity (|s_Mc| < 1)
-  # q*z <= 1-p  AND  -q*z <= 1+p
-  ones = np.ones((len(inactive_indices), 1))
+    # Constraint 1: Sign Consistency (-diag(s)*v*z < diag(s)*u)
+    # A1 * z <= B1
+    A1 = - np.diag(s_M.flatten()) @ v
+    B1 = np.diag(s_M.flatten()) @ u
 
-  # q*z <= 1 - p
-  A2 = q
-  B2 = ones - p
+    # Constraint 2: Inactive Stationarity (|s_Mc| < 1)
+    # q*z <= 1-p  AND  -q*z <= 1+p
+    ones = np.ones((len(inactive_indices), 1))
 
-  # -q*z <= 1 + p
-  A3 = -q
-  B3 = ones + p
+    # q*z <= 1 - p
+    A2 = q
+    B2 = ones - p
 
-  A = np.concatenate([A1.flatten(), A2.flatten(), A3.flatten()])
-  B = np.concatenate([B1.flatten(), B2.flatten(), B3.flatten()])
+    # -q*z <= 1 + p
+    A3 = -q
+    B3 = ones + p
+
+    A = np.concatenate([A1.flatten(), A2.flatten(), A3.flatten()])
+    B = np.concatenate([B1.flatten(), B2.flatten(), B3.flatten()])
 
   # 5. Solve for Interval [L, R]
   # For each inequality A_i * z <= B_i:
