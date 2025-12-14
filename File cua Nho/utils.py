@@ -3,6 +3,7 @@ from sklearn.linear_model import Lasso
 import math
 from mpmath import mp
 from scipy.stats import norm
+from sklearn.metrics import mean_squared_error
 
 def split_target(T, X_target, y_target, n_target):
   folds = []
@@ -396,7 +397,7 @@ def get_Z_CoRT(X_combined, similar_source_index, alpha_val, a_global, b_global, 
     n, p = X_combined.shape
 
     clf = Lasso(alpha=alpha_val, fit_intercept=False, tol=1e-6, max_iter=500000)
-    clf.fit(X_combined, y_combined)
+    clf.fit(X_combined, y_combined.flatten())
 
     active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]
     inactive_indices = [idx for idx, coef in enumerate(clf.coef_) if coef == 0]
@@ -527,6 +528,65 @@ def pivot(A, list_active_set, list_zk, etaj, etajTy, tn_mu, cov):
     return float(p_value)
   else:
     return None
+
+def find_similar_source(z_obs, a_global, b_global, alpha, n_target, K, target_data, source_data, T=5, verbose=False):
+   
+    X_target = target_data["X"]
+    y_target = a_global + b_global * z_obs
+
+    # X_target = X_target - X_target.mean(axis=0) #########
+    # y_target = y_target - y_target.mean() #######
+
+    similar_source_index = []
+    threshold = (T + 1) / 2
+
+    folds = split_target(T, X_target, y_target, n_target)
+
+    for k in range(K):
+        source_k = source_data[k]
+        X_source_k = source_k["X"]
+        y_source_k = source_k["y"].ravel()
+
+        # X_source_k = X_source_k - X_source_k.mean(axis=0) #############
+        # y_source_k = y_source_k - y_source_k.mean() #################
+        count = 0
+
+        for t in range(T):
+            X_test = folds[t]["X"]
+            y_test = folds[t]["y"].ravel()
+
+            X_train_list = [folds[i]["X"] for i in range(T) if i != t]
+            y_train_list = [folds[i]["y"] for i in range(T) if i != t]
+
+            X_train = np.vstack(X_train_list)
+            y_train = np.concatenate(y_train_list).ravel()
+
+           
+            model_0 = Lasso(alpha, fit_intercept=False, tol=1e-6, max_iter=500000)
+            model_0.fit(X_train, y_train)
+
+            pred_0 = model_0.predict(X_test)
+            X_train_0k = np.vstack([X_train, X_source_k])
+            y_train_0k = np.concatenate([y_train, y_source_k])
+
+            
+            model_0k = Lasso(alpha, fit_intercept=False, tol=1e-6, max_iter=500000)
+            model_0k.fit(X_train_0k, y_train_0k)
+            pred_0k = model_0k.predict(X_test)
+
+            loss_0 = mean_squared_error(y_test, pred_0)
+            loss_0k = mean_squared_error(y_test, pred_0k)
+
+            if loss_0k <= loss_0:
+                count += 1
+
+        if count >= threshold:
+            similar_source_index.append(k)
+
+        if verbose:
+            print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
+
+        return similar_source_index
 
 
 
