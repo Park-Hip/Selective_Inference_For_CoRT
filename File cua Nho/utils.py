@@ -73,7 +73,7 @@ def compute_lasso_interval(X, a, b, alpha_val, z_obs):
     # 1. Fit Lasso at z_obs to get the "Truth" (Active Set & Signs)
     n, p =  X.shape
     y = a + b * z_obs
-    clf = Lasso(alpha=alpha_val, fit_intercept=False, tol=1e-8, max_iter=10000000)
+    clf = Lasso(alpha=alpha_val, fit_intercept=False, tol=1e-6, max_iter=500000)
     clf.fit(X, y.flatten())
 
     # 2. Extract Active Set (M) and Signs (s)
@@ -236,7 +236,7 @@ def get_u_v(X, a, b, z_obs, alpha_val):
     b = b.reshape(-1, 1)
 
     y = a + b * z_obs
-    clf = Lasso(alpha=alpha_val, fit_intercept=False, tol=1e-8, max_iter=10000000)
+    clf = Lasso(alpha=alpha_val, fit_intercept=False, tol=1e-6, max_iter=500000)
     clf.fit(X, y.flatten())
 
     active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]
@@ -395,7 +395,7 @@ def get_Z_CoRT(X_combined, similar_source_index, alpha_val, a_global, b_global, 
 
     n, p = X_combined.shape
 
-    clf = Lasso(alpha=alpha_val, fit_intercept=False, tol=1e-8, max_iter=10000000)
+    clf = Lasso(alpha=alpha_val, fit_intercept=False, tol=1e-6, max_iter=500000)
     clf.fit(X_combined, y_combined)
 
     active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]

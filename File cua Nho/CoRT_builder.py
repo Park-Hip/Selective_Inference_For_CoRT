@@ -119,9 +119,9 @@ class CoRT:
                 y_train = np.concatenate(y_train_list).ravel()
 
                 if self.use_LassoCV:
-                    model_0 = LassoCV(cv=5, fit_intercept=False, random_state=42, n_jobs=-1)
+                    model_0 = Lasso(alpha=self.alpha, fit_intercept=False, tol=1e-6, max_iter=500000)
                 else:
-                    model_0 = Lasso(alpha=self.alpha, fit_intercept=False, random_state=42)
+                    model_0 = Lasso(alpha=self.alpha, fit_intercept=False, tol=1e-6, max_iter=500000)
 
                 model_0.fit(X_train, y_train)
                 pred_0 = model_0.predict(X_test)
@@ -130,9 +130,9 @@ class CoRT:
                 y_train_0k = np.concatenate([y_train, y_source_k])
 
                 if self.use_LassoCV:
-                    model_0k = LassoCV(cv=5, fit_intercept=False, random_state=42, n_jobs=-1)
+                    model_0k = Lasso(alpha=self.alpha, fit_intercept=False, tol=1e-6, max_iter=500000)
                 else:
-                    model_0k = Lasso(alpha=self.alpha, fit_intercept=False, random_state=42)
+                    model_0k = Lasso(alpha=self.alpha, fit_intercept=False, tol=1e-6, max_iter=500000)
 
                 model_0k.fit(X_train_0k, y_train_0k)
                 pred_0k = model_0k.predict(X_test)
