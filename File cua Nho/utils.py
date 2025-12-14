@@ -509,10 +509,11 @@ def pivot(A, list_active_set, list_zk, etaj, etajTy, tn_mu, cov):
 
   num = 0
   den = 0
+  print(len(z_interval))
   for interval in z_interval:
     lower = interval[0]
     upper = interval[1]
-
+    print(lower, upper)
     den += mp.ncdf((upper-tn_mu)/tn_sigma) - mp.ncdf((lower-tn_mu)/tn_sigma)
 
     if etajTy >= upper:
