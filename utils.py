@@ -173,7 +173,7 @@ def pivot(A, list_active_set, list_zk, etaj, etajTy, tn_mu, cov):
         for i in range(len(list_active_set)):
             # Use safe comparison for mixed types
             if np.array_equal(A, list_active_set[i]):
-                 z_interval.append([list_zk[i], list_zk[i+1]]) # Removed 1e-10 to keep precision
+                 z_interval.append([list_zk[i], list_zk[i+1] - 1e-10])
 
         # Merge intervals
         new_z_interval = []
