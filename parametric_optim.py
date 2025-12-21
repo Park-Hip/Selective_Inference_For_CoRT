@@ -622,9 +622,6 @@ def find_similar_source(z_obs, a_global, b_global, alpha, n_target, K, target_da
     X_target = target_data["X"]
     y_target = a_global + b_global * z_obs
 
-    # X_target = X_target - X_target.mean(axis=0) #########
-    # y_target = y_target - y_target.mean() #######
-
     similar_source_index = []
     threshold = (T + 1) / 2
 
@@ -635,8 +632,6 @@ def find_similar_source(z_obs, a_global, b_global, alpha, n_target, K, target_da
         X_source_k = source_k["X"]
         y_source_k = source_k["y"].ravel()
 
-        # X_source_k = X_source_k - X_source_k.mean(axis=0) #############
-        # y_source_k = y_source_k - y_source_k.mean() #################
         count = 0
 
         for t in range(T):
@@ -671,10 +666,10 @@ def find_similar_source(z_obs, a_global, b_global, alpha, n_target, K, target_da
         if count >= threshold:
             similar_source_index.append(k)
 
-        if verbose:
-            print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
+    if verbose:
+        print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
 
-        return similar_source_index
+    return similar_source_index
 
 
 

@@ -87,11 +87,9 @@ class CoRT:
         Return:
           - similar_source_index: List
         """
+        
         X_target = target_data["X"]
         y_target = target_data["y"]
-
-        # X_target = X_target - X_target.mean(axis=0) #########
-        # y_target = y_target - y_target.mean() #######
 
         similar_source_index = []
         threshold = (T + 1) / 2
@@ -103,8 +101,6 @@ class CoRT:
             X_source_k = source_k["X"]
             y_source_k = source_k["y"].ravel()
 
-            # X_source_k = X_source_k - X_source_k.mean(axis=0) #############
-            # y_source_k = y_source_k - y_source_k.mean() #################
             count = 0
 
             for t in range(T):
@@ -139,10 +135,10 @@ class CoRT:
             if count >= threshold:
                 similar_source_index.append(k)
 
-            if verbose:
-                print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
+        if verbose:
+            print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
 
-            return similar_source_index
+        return similar_source_index
 
     def prepare_CoRT_data(self, similar_source_index, source_data, target_data):
         """
