@@ -533,57 +533,6 @@ def get_Z_CoRT(X_combined, similar_source_index, alpha_val, a_global, b_global, 
 #     return truncated_cdf
 
 
-# def pivot(A, list_active_set, list_zk, etaj, etajTy, tn_mu, cov):
-#   try:
-#     old_dps = mp.dps
-#     mp.dps = 100
-#     z_interval = []
-
-#     for i in range(len(list_active_set)):
-#       if np.array_equal(A, list_active_set[i]):
-#         z_interval.append([list_zk[i], list_zk[i+1]])
-
-#     new_z_interval = []
-
-#     for interval in z_interval:
-#       if len(new_z_interval) == 0:
-#         new_z_interval.append(interval)
-#       else:
-#           dif = abs(interval[0] - new_z_interval[-1][1])
-#           if dif < 0.001:
-#             new_z_interval[-1][1] = interval[1]
-#           else:
-#             new_z_interval.append(interval)
-
-#     z_interval = new_z_interval
-
-#     tn_sigma = (np.sqrt(etaj.T @ cov @ etaj)).item()
-
-#     num = 0
-#     den = 0
-
-#     # print(len(z_interval))
-
-#     for interval in z_interval:
-#       lower = interval[0]
-#       upper = interval[1]
-#       print(lower, upper)
-#       den += mp.ncdf((upper-tn_mu)/tn_sigma) - mp.ncdf((lower-tn_mu)/tn_sigma)
-
-#       if etajTy >= upper:
-#         num += mp.ncdf((upper-tn_mu)/tn_sigma) - mp.ncdf((lower-tn_mu)/tn_sigma)
-#       elif lower <= etajTy < upper:
-#         num += mp.ncdf((etajTy-tn_mu)/tn_sigma) - mp.ncdf((lower-tn_mu)/tn_sigma)
-
-#     if den != 0:
-#       conditional_cdf = (num/den)
-#       p_value = 2 * min(conditional_cdf, 1-conditional_cdf)
-#       return float(p_value)
-#     else:
-#       return None
-#   finally:
-#     mp.dps = old_dps
-
 from mpmath import mp
 
 def pivot(A, list_active_set, list_zk, etaj, etajTy, tn_mu, cov):
@@ -713,8 +662,8 @@ def find_similar_source(z_obs, a_global, b_global, alpha, n_target, K, target_da
         if count >= threshold:
             similar_source_index.append(k)
 
-        if verbose:
-            print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
+    if verbose:
+        print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
 
     return similar_source_index
 

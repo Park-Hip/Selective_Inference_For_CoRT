@@ -139,10 +139,10 @@ class CoRT:
             if count >= threshold:
                 similar_source_index.append(k)
 
-            if verbose:
-                print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
+        if verbose:
+            print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
 
-            return similar_source_index
+        return similar_source_index
 
     def prepare_CoRT_data(self, similar_source_index, source_data, target_data):
         """

@@ -157,8 +157,8 @@ def find_similar_source(z_obs, a_global, b_global, alpha, n_target, K, target_da
         if count >= threshold:
             similar_source_index.append(k)
 
-        if verbose:
-            print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
+    if verbose:
+        print(f"Total {len(similar_source_index)} similar sources: {similar_source_index}")
 
     return similar_source_index
     
