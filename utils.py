@@ -1,7 +1,6 @@
 import numpy as np
 from sklearn.linear_model import Lasso
 import math
-from scipy.stats import norm
 from sklearn.metrics import mean_squared_error
 from mpmath import mp
 
@@ -32,10 +31,11 @@ def construct_test_statistic(y, j, X_active):
   '''
   Compute test statistic direction etaj and its projection etajTy
   '''
+
   n, m = X_active.shape
   ej = np.zeros((m,1))
   ej[j] = 1
-  etajT = ej.T @ np.linalg.pinv(X_active.T @ X_active + 1e-6 * np.eye(m)) @ X_active.T #####
+  etajT = ej.T @ np.linalg.pinv(X_active.T @ X_active + 1e-6 * np.eye(m)) @ X_active.T 
   etaj = etajT.T
   etajTy = etajT @ y
 
@@ -63,53 +63,37 @@ def computed_truncated_cdf(L, R, z, mu, sigma):
   Computes the Truncated Normal CDF using high-precision arithmetic.
   """
 
-  old_dps = mp.dps
-  mp.dps = 100
+  norm_L = (L - mu) / sigma
+  norm_R = (R - mu) / sigma
+  norm_z = (z - mu) / sigma
 
-  try:
-    L_mp = mp.mpf(L)
-    R_mp = mp.mpf(R)
-    z_mp = mp.mpf(z)
-    mu_mp = mp.mpf(mu)
-    sigma_mp = mp.mpf(sigma)
+  cdf_L = mp.ncdf(norm_L)
+  cdf_R = mp.ncdf(norm_R)
+  cdf_y = mp.ncdf(norm_z)
 
-    norm_L = (L_mp - mu_mp) / sigma_mp 
-    norm_R = (R_mp - mu_mp) / sigma_mp 
-    norm_z = (z_mp - mu_mp) / sigma_mp 
+  denominator = cdf_R - cdf_L
 
-    cdf_L = mp.ncdf(norm_L)
-    cdf_R = mp.ncdf(norm_R)
-    cdf_y = mp.ncdf(norm_z)
+  if denominator == 0:
+    return None
+  
+  numerator = cdf_y - cdf_L
 
-    denominator = cdf_R - cdf_L
+  if numerator < 0:
+    print("numerator is negative")
 
-    if denominator == 0:
-      return None
-    
-    numerator = cdf_y - cdf_L
+  if numerator > denominator:
+    print("numerator is bigger than denominator")
 
-    if numerator < 0:
-      numerator = mp.mpf(0)
-      print("numerator is negative")
+  val = numerator / denominator
 
-    if numerator > denominator:
-      numerator = denominator
-      print("numerator is bigger than denominator")
+  return float(val)
 
-    val = numerator / denominator
 
-    return float(val)
 
-  finally:
-    mp.dps = old_dps
-
-def find_similar_source(z_obs, a_global, b_global, alpha, n_target, K, target_data, source_data, T, verbose=False):
+def find_similar_source(z, a_global, b_global, alpha, n_target, K, target_data, source_data, T, verbose=False):
    
     X_target = target_data["X"]
-    y_target = a_global + b_global * z_obs
-
-    # X_target = X_target - X_target.mean(axis=0) #########
-    # y_target = y_target - y_target.mean() #######
+    y_target = a_global + b_global * z
 
     similar_source_index = []
     threshold = (T + 1) / 2
@@ -121,8 +105,6 @@ def find_similar_source(z_obs, a_global, b_global, alpha, n_target, K, target_da
         X_source_k = source_k["X"]
         y_source_k = source_k["y"].ravel()
 
-        # X_source_k = X_source_k - X_source_k.mean(axis=0) #############
-        # y_source_k = y_source_k - y_source_k.mean() #################
         count = 0
 
         for t in range(T):
@@ -163,71 +145,50 @@ def find_similar_source(z_obs, a_global, b_global, alpha, n_target, K, target_da
     return similar_source_index
     
 def pivot(A, list_active_set, list_zk, etaj, etajTy, tn_mu, cov):
-    # 1. Set High Precision (Crucial for tails)
-    old_dps = mp.dps
-    mp.dps = 100  # Use 100 decimal digits of precision
-    
-    try:
-        # --- (Existing Interval Logic) ---
-        z_interval = []
-        for i in range(len(list_active_set)):
-            # Use safe comparison for mixed types
-            if np.array_equal(A, list_active_set[i]):
-                 z_interval.append([list_zk[i], list_zk[i+1] - 1e-10])
+    z_interval = []
+    for i in range(len(list_active_set)):
+        if np.array_equal(A, list_active_set[i]):
+                z_interval.append([list_zk[i], list_zk[i+1] - 1e-10])
 
-        # Merge intervals
-        new_z_interval = []
-        for interval in z_interval:
-            if len(new_z_interval) == 0:
-                new_z_interval.append(interval)
+    # Merge intervals
+    new_z_interval = []
+    for interval in z_interval:
+        if len(new_z_interval) == 0:
+            new_z_interval.append(interval)
+        else:
+            dif = abs(interval[0] - new_z_interval[-1][1])
+            if dif < 0.001:
+                new_z_interval[-1][1] = interval[1]
             else:
-                dif = abs(interval[0] - new_z_interval[-1][1])
-                if dif < 0.001:
-                    new_z_interval[-1][1] = interval[1]
-                else:
-                    new_z_interval.append(interval)
-        z_interval = new_z_interval
-        # ---------------------------------
+                new_z_interval.append(interval)
+    z_interval = new_z_interval
 
-        tn_sigma = mp.mpf((np.sqrt(etaj.T @ cov @ etaj)).item())
-        tn_mu = mp.mpf(tn_mu)
-        val_obs = mp.mpf(etajTy)
+    tn_sigma = (np.sqrt(etaj.T @ cov @ etaj)).item()
 
-        num = mp.mpf(0)
-        den = mp.mpf(0)
+    num = 0
+    den = 0
 
-        for interval in z_interval:
-            lower = mp.mpf(interval[0])
-            upper = mp.mpf(interval[1])
-            
-            # Calculate Mass: Phi(upper) - Phi(lower)
-            # Normalize to standard normal Z = (x - mu) / sigma
-            z_u = (upper - tn_mu) / tn_sigma
-            z_l = (lower - tn_mu) / tn_sigma
-            
-            # mp.ncdf gives high precision CDF
-            mass = mp.ncdf(z_u) - mp.ncdf(z_l)
-            den += mass
+    for interval in z_interval:
+        lower = interval[0]
+        upper = interval[1]
 
-            # Calculate Numerator Mass (intersection with (-inf, obs])
-            if val_obs >= upper:
-                num += mass
-            elif lower <= val_obs < upper:
-                z_obs_norm = (val_obs - tn_mu) / tn_sigma
-                num += mp.ncdf(z_obs_norm) - mp.ncdf(z_l)
+        # Normalize to standard normal Z = (x - mu) / sigma
+        z_u = (upper - tn_mu) / tn_sigma
+        z_l = (lower - tn_mu) / tn_sigma
 
-        if den == 0:
-            return None
+        den += mp.ncdf(z_u) - mp.ncdf(z_l)
 
-        conditional_cdf = num / den
-        
-        # Calculate 2-sided p-value
-        # p = 2 * min(CDF, 1 - CDF)
-        p_value = 2 * min(conditional_cdf, 1 - conditional_cdf)
-        
-        # Convert back to standard float for storage/plotting
-        return float(p_value)
+        if etajTy >= upper:
+            num += mp.ncdf(z_u) - mp.ncdf(z_l)
 
-    finally:
-        # Reset precision to avoid affecting other parts of code
-        mp.dps = old_dps
+        elif lower <= etajTy < upper:
+            z_norm = (etajTy - tn_mu) / tn_sigma
+            num += mp.ncdf(z_norm) - mp.ncdf(z_l)
+
+    if den == 0:
+        return None
+
+    conditional_cdf = num / den
+    p_value = 2 * min(conditional_cdf, 1 - conditional_cdf)
+    
+    return float(p_value)

@@ -1,6 +1,5 @@
 import numpy as np
 from sklearn.linear_model import Lasso
-from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
 import utils
 
@@ -27,17 +26,22 @@ class CoRT:
           - target_data: dict
           - source_data: List[dict]
         """
+        
         if not isinstance(s_vector, np.ndarray):
             s_vector = np.array(s_vector)
 
         # 1. Covariance Setup
         if cov_type == 'standard':
             sigma_val = 1.0
-            Sigma = sigma = np.eye(p)
+            Sigma = np.eye(p)
+            Sigma_source = Sigma
+
         elif cov_type == "AR":
             indices = np.arange(p)
             sigma_val = 0.5
             Sigma = sigma_val ** np.abs(indices[:, None] - indices[None, :])
+            eps = np.random.normal(0, 0.3, size=(p, 1))
+            Sigma_source = Sigma + (eps @ eps.T)
 
         # 2. Target Data
         beta = np.concatenate([s_vector, np.zeros((p - s))]).reshape(-1, 1)
@@ -49,9 +53,6 @@ class CoRT:
         # 3. Source Data
         source_data = []
         for k in range(K):
-            eps = np.random.normal(0, 0.3, size=(p, 1))
-            Sigma_source = Sigma + (eps @ eps.T)
-
             X_k = np.random.multivariate_normal(mean=np.zeros(p), cov=Sigma_source, size=n_source)
 
             if k < Ka:
@@ -65,8 +66,7 @@ class CoRT:
                 idx_random = np.random.choice(np.arange(2 * s, p), size=s, replace=False)
                 active_indices = np.concatenate([idx_shift, idx_random])
                 beta_k[active_indices] = 0.5
-                beta_k = beta_k + (2 * h / p) * np.random.choice([-1, 1], size=(p, 1)) ################
-                ## beta_k = beta_k + (10 * h / p) * np.random.choice([-1, 1], size=(p, 1))
+                beta_k = beta_k + (2 * h / p) * np.random.choice([-1, 1], size=(p, 1)) 
                 y_k = X_k @ beta_k + np.random.randn(n_source, 1) + 0.5
 
             source_data.append({"X": X_k, "y": y_k})
@@ -87,11 +87,9 @@ class CoRT:
         Return:
           - similar_source_index: List
         """
+
         X_target = target_data["X"]
         y_target = target_data["y"]
-
-        # X_target = X_target - X_target.mean(axis=0) #########
-        # y_target = y_target - y_target.mean() #######
 
         similar_source_index = []
         threshold = (T + 1) / 2
@@ -103,8 +101,6 @@ class CoRT:
             X_source_k = source_k["X"]
             y_source_k = source_k["y"].ravel()
 
-            # X_source_k = X_source_k - X_source_k.mean(axis=0) #############
-            # y_source_k = y_source_k - y_source_k.mean() #################
             count = 0
 
             for t in range(T):
@@ -161,6 +157,7 @@ class CoRT:
                               [ 0      0      0      X_T  ]  # Target rows
           - y_combined: Combined y of sources and target
         """
+
         X_target = target_data["X"]
         y_target = target_data["y"].reshape(-1, 1)
         p = X_target.shape[1]

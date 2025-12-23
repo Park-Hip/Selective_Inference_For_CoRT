@@ -1,8 +1,5 @@
 import numpy as np
 from sklearn.linear_model import Lasso
-import math
-from scipy.stats import norm
-from sklearn.metrics import mean_squared_error
 
 def get_affine_params(X_fold, y_fold_indices, a_global, b_global, source_data_k=None):
   X_out = X_fold
