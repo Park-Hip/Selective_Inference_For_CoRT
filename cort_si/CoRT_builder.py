@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.linear_model import Lasso
 from sklearn.metrics import mean_squared_error
-import utils
+import cort_si.utils as utils
 
 class CoRT:
     def __init__(self, alpha=0.1):
