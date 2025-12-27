@@ -94,7 +94,7 @@ def pivot(A, list_active_set, list_zk, etaj, etajTy, tn_mu, cov):
     z_interval = []
     for i in range(len(list_active_set)):
         if np.array_equal(A, list_active_set[i]):
-                z_interval.append([list_zk[i], list_zk[i+1] - 1e-4])
+                z_interval.append([list_zk[i], list_zk[i+1] - 1e-8]) ##
 
     # Merge intervals
     new_z_interval = []
