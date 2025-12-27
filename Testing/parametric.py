@@ -91,92 +91,6 @@ def compute_lasso_interval(X, a, b, alpha, z):
 
     return L_model, R_model
 
-def get_Z_train(z, folds, source_data, a_global, b_global, lamda, K, T):
-    """
-    Computes the Z_train interval containing z. Intersection of stability regions for T Baselines and T*K Augmented models.
-    """
-    
-    L_final = - np.inf
-    R_final = np.inf
-
-    fold_indices = []
-    start = 0
-    
-    for f in folds:
-      size = f["X"].shape[0]
-      fold_indices.append(np.arange(start, start+size))
-      start += size
-
-    train_indices_list = []
-    X_train_list = []
-    interval_list = []
-
-    for t in range(T):
-        train_indices_list = []
-        X_train_list = []
-        
-        for i in range(T):
-            if (i != t):
-                train_indices_list.append(fold_indices[i])
-                X_train_list.append(folds[i]["X"])
-
-        train_indices = np.concatenate(train_indices_list)
-        X_target_train = np.vstack(X_train_list)
-
-        X_base, a_base, b_base = utils.get_affine_params(X_target_train, train_indices, a_global, b_global)
-        L_base, R_base = compute_lasso_interval(X_base, a_base, b_base, lamda, z)
-
-        L_final = max(L_final, L_base)
-        R_final = min(R_final, R_base)
-
-        interval_list.append(["base", t, -1, L_base, R_base])
-
-        for k in range(K):
-            source_data_k = source_data[k]
-
-            X_aug, a_aug, b_aug = utils.get_affine_params(X_target_train, train_indices, a_global, b_global, source_data_k)
-            L_aug, R_aug = compute_lasso_interval(X_aug, a_aug, b_aug, lamda, z)
-
-            L_final = max(L_final, L_aug)
-            R_final = min(R_final, R_aug)
-            interval_list.append(["augmented", t, k, L_aug, R_aug])
-
-    return interval_list
-
-def update_Z_train(val, z, folds, source_data, a_global, b_global, lamda, K, T):
-
-    fold_indices = []
-    start = 0
-    for f in folds:
-        size = f["X"].shape[0]
-        fold_indices.append(np.arange(start, start+size))
-        start += size
-
-    train_indices_list = []
-    X_train_list = []
-
-    type = val[0]
-    t = val[1]
-    k = val[2]
-
-    for i in range(T):
-        if (i != t):
-            train_indices_list.append(fold_indices[i])
-            X_train_list.append(folds[i]["X"])
-    train_indices = np.concatenate(train_indices_list)
-    X_target_train = np.vstack(X_train_list)
-
-    if (type == 'base'):
-        X_base, a_base, b_base = utils.get_affine_params(X_target_train, train_indices, a_global, b_global)
-        L_base, R_base = compute_lasso_interval(X_base, a_base, b_base, lamda, z)
-        return L_base, R_base
-    else:
-        source_data_k = source_data[k]
-        X_aug, a_aug, b_aug = utils.get_affine_params(X_target_train, train_indices, a_global, b_global, source_data_k)
-        L_aug, R_aug = compute_lasso_interval(X_aug, a_aug, b_aug, lamda, z)
-
-        return L_aug, R_aug
-
 def get_u_v(X, a, b, z, alpha):
     n, p = X.shape
     a = a.reshape(-1, 1)
@@ -240,128 +154,89 @@ def solve_quadratic_interval(A, B, C, z):
 
     return L, R
 
-def get_Z_val(z, folds, T, K, a_global, b_global, alpha, source_data):
-    L_final = - np.inf
-    R_final = np.inf
-
-    fold_indices = []
-    start = 0
-    cnt_vote = {}
-    is_similar = {}
-
-    for k in range(K):
-      for t in range(T):
-          is_similar[(k, t)] = 0
-
-      cnt_vote[k] = 0
-
-    for f in folds:
-      size = f["X"].shape[0]
-      fold_indices.append(np.arange(start, start + size))
-      start += size
-
-    interval_list = []
-    similar_source = []
-
-    for k in range(K):
-      for t in range(T):
-        train_indices_list = []
-        X_train_list = []
-        for i in range(T):
-          if (i != t):
-              train_indices_list.append(fold_indices[i])
-              X_train_list.append(folds[i]["X"])
-
-        train_indices = np.concatenate(train_indices_list)
-        X_target_train = np.vstack(X_train_list)
-
-        X_base_train, a_base_train, b_base_train = utils.get_affine_params(X_target_train, train_indices, a_global, b_global)
-        u_base, v_base = get_u_v(X_base_train, a_base_train, b_base_train, z, alpha)
-
-        X_val = folds[t]["X"]
-        val_indices = fold_indices[t]
-        _, a_base_val, b_base_val = utils.get_affine_params(X_val, val_indices, a_global, b_global)
-        C2_base, C1_base, C0_base = get_loss_coefs(a_base_val, b_base_val,  u_base, v_base, X_val)
-
-        source_data_k = source_data[k]
-        X_aug_train, a_aug_train, b_aug_train = utils.get_affine_params(X_target_train, train_indices, a_global, b_global, source_data_k)
-        u_aug, v_aug = get_u_v(X_aug_train, a_aug_train, b_aug_train, z, alpha)
-        C2_aug, C1_aug, C0_aug = get_loss_coefs(a_base_val, b_base_val, u_aug, v_aug, X_val)
-
-        A_dif = C2_aug - C2_base
-        B_dif = C1_aug - C1_base
-        C_dif = C0_aug - C0_base
-
-        delta = A_dif * z * z + B_dif * z + C_dif
-        if delta <= 0:
-            if (is_similar[(k, t)] == 0 and cnt_vote[k] == (T + 1) / 2 - 1):
-              similar_source.append(k)
-
-            is_similar[(k, t)] = 1
-            cnt_vote[k] += is_similar[(k, t)]
-
-        L_vote, R_vote = solve_quadratic_interval(A_dif, B_dif, C_dif, z)
-        L_final = max(L_final, L_vote)
-        R_final = min(R_final, R_vote)
-
-        interval_list.append([t, k, L_vote, R_vote])
-
-    return interval_list, similar_source, cnt_vote, is_similar
-
-def update_Z_val(val, z, folds, T, a_global, b_global, alpha, source_data, similar_source, cnt_vote, is_similar):
+def find_interval(t, k, z_min, z_max, folds, source_data, a_global, b_global, lamda, K, T): 
     fold_indices = []
     start = 0
     for f in folds:
       size = f["X"].shape[0]
-      fold_indices.append(np.arange(start, start + size))
+      fold_indices.append(np.arange(start, start+size))
       start += size
-    interval_list = []
-    t = val[0]
-    k = val[1]
-    X_train_list = [folds[i]["X"] for i in range(T) if i != t]
+
+    train_indices_list = []
+    X_train_list = []
+    for i in range(T):
+        if i != t:
+            train_indices_list.append(fold_indices[i])
+            X_train_list.append(folds[i]["X"])
+
+    train_indices = np.concatenate(train_indices_list)
     X_target_train = np.vstack(X_train_list)
-    train_indices_list = [fold_indices[i] for i in range(T) if i != t] 
-    train_indices = np.concatenate(train_indices_list) 
+    X_base, a_base, b_base = utils.get_affine_params(X_target_train, train_indices, a_global, b_global)
 
-    X_base_train, a_base_train, b_base_train = utils.get_affine_params(X_target_train, train_indices, a_global, b_global)
-    u_base, v_base = get_u_v(X_base_train, a_base_train, b_base_train, z, alpha)
+    z1 = z_min
+    lim1 = z_max
+    interval = []
+    while z1 < lim1:
+        L_base, R_base = compute_lasso_interval(X_base, a_base, b_base, lamda, z1)
+        source_data_k = source_data[k]
+        X_aug, a_aug, b_aug = utils.get_affine_params(X_target_train, train_indices, a_global, b_global, source_data_k)
+        
+        z2 = z1
+        lim2 = min(R_base, lim1)
+        # print(z2, lim2)
+        while z2 < lim2:
+            L_aug, R_aug = compute_lasso_interval(X_aug, a_aug, b_aug, lamda, z2)
+            z3 = z2
+            lim3 = min(R_aug, lim2)
+            # print(z3, lim3)
+            # print(f"Starting wih left: {z3}, right: {lim3}"
+            while z3 < lim3:
+                u_base, v_base = get_u_v(X_base, a_base, b_base, z3, lamda)
+                # print(z3)
+                X_val = folds[t]["X"]
+                val_indices = fold_indices[t]
+                
+                _, a_base_val, b_base_val = utils.get_affine_params(X_val, val_indices, a_global, b_global)
+                C2_base, C1_base, C0_base = get_loss_coefs(a_base_val, b_base_val, u_base, v_base, X_val)
 
-    X_val = folds[t]["X"]
-    val_indices = fold_indices[t]
-    _, a_base_val, b_base_val = utils.get_affine_params(X_val, val_indices, a_global, b_global)
-    C2_base, C1_base, C0_base = get_loss_coefs(a_base_val, b_base_val,  u_base, v_base, X_val)
-    source_data_k = source_data[k]
-    X_aug_train, a_aug_train, b_aug_train = utils.get_affine_params(X_target_train, train_indices, a_global, b_global, source_data_k)
-    u_aug, v_aug = get_u_v(X_aug_train, a_aug_train, b_aug_train, z, alpha)
-    C2_aug, C1_aug, C0_aug = get_loss_coefs(a_base_val, b_base_val, u_aug, v_aug, X_val)
+                u_aug, v_aug = get_u_v(X_aug, a_aug, b_aug, z3, lamda)
+                C2_aug, C1_aug, C0_aug = get_loss_coefs(a_base_val, b_base_val, u_aug, v_aug, X_val)
 
-    A_dif = C2_aug - C2_base
-    B_dif = C1_aug - C1_base
-    C_dif = C0_aug - C0_base
+                A_dif = C2_aug - C2_base
+                B_dif = C1_aug - C1_base
+                C_dif = C0_aug - C0_base
 
-    delta = A_dif * z * z + B_dif * z + C_dif
-    similar_source_changed = False
-    
-    if delta > 0:
-      if is_similar[(k, t)] == 1:
-        cnt_vote[k] -= 1
-        if cnt_vote[k] == (T + 1) / 2 - 1:
-          similar_source.remove(k)
-          similar_source_changed = True
-      is_similar[(k, t)] = 0
+                L_vote, R_vote = solve_quadratic_interval(A_dif, B_dif, C_dif, z3)
+                delta = A_dif * z3 * z3 + B_dif * z3 + C_dif
+                cnt = 0
+                if delta <= 0: 
+                    cnt = 1
+                else:
+                    cnt = 0
+                l = z3
+                r = min(R_vote, lim3)
+                interval.append([l, r, cnt])
+                z3 = max(z3, R_vote) + 1e-5 
+            z2 = max(R_aug, z2) + 1e-5 
+        z1 = max(z1, R_base) + 1e-5
 
-    else:
-      if is_similar[(k, t)] == 0:
-        cnt_vote[k] += 1   
-        if cnt_vote[k] == (T + 1) / 2:
-          similar_source.append(k)
-          similar_source_changed = True
-      is_similar[(k, t)] = 1
+    return interval
 
-    L_vote, R_vote = solve_quadratic_interval(A_dif, B_dif, C_dif, z)
-    similar_source = np.sort(similar_source).tolist()
 
-    return L_vote, R_vote, similar_source, cnt_vote, is_similar, similar_source_changed
+def find_similar_source(z, z_max, interval, K, T):
+    similar_source = []
+    ans = z_max
+    for k in range(K):
+        cnt = 0
+        for t in range(T):
+            for val in interval[k, t]:
+                if val[0] <= z and z <= val[1]:
+                    cnt += val[2]
+                    ans = min(ans, val[1])
+        
+        if cnt >= (T + 1) / 2:
+            similar_source.append(k)
+    return ans, similar_source
 
 def get_Z_CoRT(X_combined, similar_source_index, alpha, a_global, b_global, source_data, z):
     a_CoRT_list = []
@@ -455,35 +330,5 @@ def get_Z_CoRT(X_combined, similar_source_index, alpha, a_global, b_global, sour
 
     return L_CoRT, R_CoRT, active_indices
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
 

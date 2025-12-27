@@ -1,10 +1,6 @@
 import numpy as np
 import math
-import setting
 from mpmath import mp
-
-from sklearn.linear_model import Lasso
-from sklearn.metrics import mean_squared_error
 
 def split_target(T, X_target, y_target, n_target):
   folds = []
@@ -94,7 +90,7 @@ def pivot(A, list_active_set, list_zk, etaj, etajTy, tn_mu, cov):
     z_interval = []
     for i in range(len(list_active_set)):
         if np.array_equal(A, list_active_set[i]):
-                z_interval.append([list_zk[i], list_zk[i+1] - 1e-8]) ##
+                z_interval.append([list_zk[i], list_zk[i+1] - 1e-5])
 
     # Merge intervals
     new_z_interval = []
