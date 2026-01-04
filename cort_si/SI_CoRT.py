@@ -1,10 +1,6 @@
 import numpy as np
 from sklearn.linear_model import Lasso
-
-import utils
-import parametric
-import over_conditioning
-import CoRT_builder 
+from . import utils, parametric ,over_conditioning, CoRT_builder 
 
 def SI_parametric(n_target, p, K, target_data, source_data, lamda_not_source, lamda_1_source, lamda_k_source, T, s_len):
     CoRT_model = CoRT_builder.CoRT(alpha=lamda_not_source)

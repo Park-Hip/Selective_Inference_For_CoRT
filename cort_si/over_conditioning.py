@@ -1,6 +1,5 @@
 import numpy as np
-import utils
-import solve_interval
+from . import solve_interval, utils
 from sklearn.linear_model import Lasso
 
 def get_Z_base_aug(z_obs, folds, source_data, a_global, b_global, lamda_not_source, lamda_1_source, K, T):

@@ -1,7 +1,5 @@
 import numpy as np
-import utils
-import solve_interval
-import CoRT_builder
+from . import solve_interval, utils, CoRT_builder
 
 def solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_global, lamda_not_source, lamda_1_source, K, T): 
     interval = {}
