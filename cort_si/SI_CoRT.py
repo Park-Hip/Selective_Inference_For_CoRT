@@ -76,11 +76,11 @@ def SI_over_conditioning(n_target, p, K, target_data, source_data, lamda_k_sourc
 
     folds = utils.split_target(T, X_target, y_target, n_target)
 
-    L_base_agu, R_base_agu = over_conditioning.get_Z_base_aug(etajTy, folds, source_data, a_global, b_global, lamda_not_source, lamda_1_source, K, T)
+    L_base_aug, R_base_aug = over_conditioning.get_Z_base_aug(etajTy, folds, source_data, a_global, b_global, lamda_not_source, lamda_1_source, K, T)
     L_val, R_val = over_conditioning.get_Z_val(folds, T, K, a_global, b_global, etajTy, lamda_not_source, lamda_1_source, source_data)
     L_CoRT, R_CoRT, Az = over_conditioning.get_Z_CoRT(X_combined, similar_source_index, lamda_k_source, a_global, b_global, source_data, etajTy)
 
-    L_final, R_final = utils.combine_Z(L_base_agu, R_base_agu, L_val, R_val, L_CoRT, R_CoRT)
+    L_final, R_final = utils.combine_Z(L_base_aug, R_base_aug, L_val, R_val, L_CoRT, R_CoRT)
 
     etaT_sigma_eta = (etaj.T @ Sigma @ etaj).item()
     sigma_z = np.sqrt(etaT_sigma_eta)

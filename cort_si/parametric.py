@@ -66,6 +66,7 @@ def solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_glob
                     z2 = max(R_aug, z2) + 1e-5
                 z1 = max(z1, R_base) + 1e-5
     return interval
+
 def solve_truncation_CoRT(z_min, z_max, X_target, folds, source_data, a_global, b_global, lamda_not_source, lamda_1_source, lamda_k_source, p, K, T, M_obs):
     interval = solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_global, lamda_not_source, lamda_1_source, K, T)
     CoRT_model = CoRT_builder.CoRT(alpha=lamda_k_source)
@@ -87,7 +88,7 @@ def solve_truncation_CoRT(z_min, z_max, X_target, folds, source_data, a_global, 
 
         if np.array_equal(M_current, M_obs) == True:
             z_interval.append([z_k, R_min])
-        # print(z_k)
+
         z_k = R_min + 1e-5
     return z_interval
 
