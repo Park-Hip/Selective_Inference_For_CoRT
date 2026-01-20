@@ -11,6 +11,10 @@ def SI_parametric(n_target, p, K, target_data, source_data, lamda_not_source, la
     similar_source_index = CoRT_model.find_similar_source(n_target, K, target_data, source_data, lamda_not_source, lamda_1_source, T=T, verbose=False)
     X_combined, y_combined = CoRT_model.prepare_CoRT_data(similar_source_index, source_data, target_data)
     n_combined = X_combined.shape[0]
+
+    N = X_combined.shape[0]
+    lamda_k_source = 2 * np.sqrt(np.log(p)/ N)
+
     model = Lasso(alpha=lamda_k_source, fit_intercept=False, tol=1e-10, max_iter = 100000)
     model.fit(X_combined, y_combined.ravel())
     beta_hat_target = model.coef_[-p:]
@@ -56,6 +60,10 @@ def SI_over_conditioning(n_target, p, K, target_data, source_data, lamda_k_sourc
     similar_source_index = CoRT_model.find_similar_source(n_target, K, target_data, source_data, lamda_not_source, lamda_1_source, T=T, verbose=False)
     X_combined, y_combined = CoRT_model.prepare_CoRT_data(similar_source_index, source_data, target_data)
     n_combined = X_combined.shape[0]
+
+    N = X_combined.shape[0]
+    lamda_k_source = 2 * np.sqrt(np.log(p)/ N)
+
     model = Lasso(alpha=lamda_k_source, fit_intercept=False, tol=1e-10, max_iter = 100000)
     model.fit(X_combined, y_combined.ravel())
     beta_hat_target = model.coef_[-p:]

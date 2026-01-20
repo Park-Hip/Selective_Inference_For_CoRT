@@ -8,9 +8,13 @@ warnings.filterwarnings("ignore")
 def parametric(iteration, n_target, n_source, p, K, Ka, h, alpha, T, s_len, s_vector):
     N = n_target + Ka * n_source
     NI = n_target + n_source
-    lamda_k_source = 1.2 * np.sqrt(np.log(p)/ N)
-    lamda_1_source = 1.2 * np.sqrt(np.log(p)/ NI) 
-    lamda_not_source = 1.2 * np.sqrt(np.log(p) / n_target) 
+    # lamda_k_source = 1.2 * np.sqrt(np.log(p)/ N)
+    # lamda_1_source = 1.2 * np.sqrt(np.log(p)/ NI) 
+    # lamda_not_source = 1.2 * np.sqrt(np.log(p) / n_target) 
+
+    lamda_k_source = 2 * np.sqrt(np.log(p)/ N)
+    lamda_1_source = 2 * np.sqrt(np.log(p)/ NI) 
+    lamda_not_source = 2 * np.sqrt(np.log(p) / n_target) 
 
     para_results_storage = []
     CoRT_model = CoRT_builder.CoRT(alpha=lamda_not_source)

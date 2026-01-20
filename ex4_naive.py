@@ -8,9 +8,13 @@ from scipy.stats import norm
 def naive(iteration, n_target, n_source, p, K, Ka, h, alpha, T, s_len, s_vector):
     N = n_target + K * n_source
     NI = n_target  + n_source
-    lamda_k_source = 1.2 * np.sqrt(np.log(p)/ N)
-    lamda_1_source = 1.2 * np.sqrt(np.log(p)/ NI) 
-    lamda_not_source = 1.2 * np.sqrt(2 * np.log(p) / n_target) 
+    # lamda_k_source = 1.2 * np.sqrt(np.log(p)/ N)
+    # lamda_1_source = 1.2 * np.sqrt(np.log(p)/ NI) 
+    # lamda_not_source = 1.2 * np.sqrt(2 * np.log(p) / n_target) 
+
+    lamda_k_source = 2 * np.sqrt(np.log(p)/ N)
+    lamda_1_source = 2 * np.sqrt(np.log(p)/ NI) 
+    lamda_not_source = 2 * np.sqrt(np.log(p) / n_target) 
 
     CoRT_model = CoRT_builder.CoRT(lamda_not_source)
     para_results_storage = []
