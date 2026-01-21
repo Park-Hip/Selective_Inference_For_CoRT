@@ -4,18 +4,10 @@ import utils
 from sklearn.linear_model import Lasso
 from scipy.stats import norm
 
+CONST_C = 1.1
+
 def data_splitting(iteration, n_target, n_source, p, K, Ka, h, alpha, T, s_len, s_vector):
-    N = n_target / 2 + Ka * n_source
-    NI = n_target / 2 + n_source
-    # lamda_k_source = 1.2 * np.sqrt(np.log(p)/ N)
-    # lamda_1_source = 1.2 * np.sqrt(np.log(p)/ NI) 
-    # lamda_not_source = 1.2 * np.sqrt(np.log(p) / (n_target / 2)) 
-
-    lamda_k_source = 2 * np.sqrt(np.log(p)/ N)
-    lamda_1_source = 2 * np.sqrt(np.log(p)/ NI) 
-    lamda_not_source = 2 * np.sqrt(np.log(p) / n_target) 
-
-    CoRT_model = CoRT_builder.CoRT(lamda_not_source)
+    CoRT_model = CoRT_builder.CoRT(0)
     para_results_storage = []
 
     for i in range(0, iteration):
@@ -28,11 +20,12 @@ def data_splitting(iteration, n_target, n_source, p, K, Ka, h, alpha, T, s_len, 
         folds = utils.split_target(2, X_target, y_target, n_target)
         target_data_train = folds[0]
         target_data_test = folds[1]
-        n_target_new = int(n_target / 2)
+        n = int(n_target / 2)
 
-        similar_source_index = CoRT_model.find_similar_source(n_target_new, K, target_data_train, source_data, lamda_not_source, lamda_1_source, T=T, verbose=False)
+        similar_source_index = CoRT_model.find_similar_source(p, n, K, target_data_train, source_data, T=T, verbose=False)
         X_combined, y_combined = CoRT_model.prepare_CoRT_data(similar_source_index, source_data, target_data_train)
-        model = Lasso(alpha=lamda_k_source, fit_intercept=False, tol=1e-10, max_iter=100000)
+        lamda = CONST_C * np.sqrt(np.log(p) / n)
+        model = Lasso(alpha=lamda, fit_intercept=False, tol=1e-12, max_iter=1000000)
         model.fit(X_combined, y_combined.ravel())
         beta_hat_target = model.coef_[-p:]
 
@@ -48,7 +41,7 @@ def data_splitting(iteration, n_target, n_source, p, K, Ka, h, alpha, T, s_len, 
         y_target = target_data_test["y"]
         X_active, X_inactive = utils.get_active_X(beta_hat_target, X_target)
         etaj, etajTy = utils.construct_test_statistic(y_target, j, X_active)
-        Sigma = np.eye(n_target_new)
+        Sigma = np.eye(n)
         tn_sigma = (np.sqrt(etaj.T @ Sigma @ etaj)).item()
 
         p_value = 2 * (1 - norm.cdf(abs(etajTy), loc = 0, scale = tn_sigma))
@@ -61,6 +54,7 @@ def data_splitting(iteration, n_target, n_source, p, K, Ka, h, alpha, T, s_len, 
         }
         # print(f"is_signal : {result_dict['is_signal']}, p_values[{i}]: {result_dict['p_value']}")
         para_results_storage.append(result_dict)
+
 
     is_signal_cases = [r for r in para_results_storage if r['is_signal']]
     not_signal_cases = [r for r in para_results_storage if not r['is_signal']]

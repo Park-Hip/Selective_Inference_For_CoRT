@@ -3,7 +3,7 @@ import utils
 import solve_interval
 import CoRT_builder
 
-def solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_global, lamda_not_source, lamda_1_source, K, T): 
+def solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_global, p, K, T): 
     interval = {}
     for k in range(K):
         for t in range(T):
@@ -29,24 +29,34 @@ def solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_glob
             z1_max = z_max
             interval[(k, t)] = []
             while z1 < z1_max:
-                L_base, R_base = solve_interval.compute_lasso_interval(X_base, a_base, b_base, lamda_not_source, z1)
+                L_base, R_base = solve_interval.compute_lasso_interval(p, X_base, a_base, b_base, z1)
                 source_data_k = source_data[k]
                 X_aug, a_aug, b_aug = utils.get_affine_params(X_target_train, train_indices, a_global, b_global, source_data_k)
                 z2 = z1
                 z2_max = min(R_base, z1_max)
                 while z2 < z2_max:  
-                    L_aug, R_aug = solve_interval.compute_lasso_interval(X_aug, a_aug, b_aug, lamda_1_source, z2)
+                    L_aug, R_aug = solve_interval.compute_lasso_interval(p, X_aug, a_aug, b_aug, z2)
                     z3 = z2
                     z3_max = min(R_aug, z2_max)
                     while z3 < z3_max:
-                        u_base, v_base = utils.get_u_v(X_base, a_base, b_base, z3, lamda_not_source)
+                        u_base, v_base = utils.get_u_v(p, X_base, a_base, b_base, z3)
+                        X_val = folds[t]["X"]
+                        val_indices = fold_indices[t]
+
+                        _, a_base_val, b_base_val = utils.get_affine_params(X_val, val_indices, a_global, b_global)
+                        C2_base, C1_base, C0_base = utils.get_loss_coefs(a_base_val, b_base_val, u_base, v_base, X_val)
+
+                        u_aug, v_aug = utils.get_u_v(p, X_aug, a_aug, b_aug, z3)
+                        C2_aug, C1_aug, C0_aug = utils.get_loss_coefs(a_base_val, b_base_val, u_aug, v_aug, X_val)
+
+                        A_dif = C2_aug - C2_base
                         X_val = folds[t]["X"]
                         val_indices = fold_indices[t]
                         
                         _, a_base_val, b_base_val = utils.get_affine_params(X_val, val_indices, a_global, b_global)
                         C2_base, C1_base, C0_base = utils.get_loss_coefs(a_base_val, b_base_val, u_base, v_base, X_val)
 
-                        u_aug, v_aug = utils.get_u_v(X_aug, a_aug, b_aug, z3, lamda_1_source)
+                        u_aug, v_aug = utils.get_u_v(p, X_aug, a_aug, b_aug, z3)
                         C2_aug, C1_aug, C0_aug = utils.get_loss_coefs(a_base_val, b_base_val, u_aug, v_aug, X_val)
 
                         A_dif = C2_aug - C2_base
@@ -73,9 +83,9 @@ def solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_glob
                     print(f"R_base, z1: {R_base}, {z1}")
                 z1 = R_base + 1e-5
     return interval
-def solve_truncation_CoRT(z_min, z_max, X_target, folds, source_data, a_global, b_global, lamda_not_source, lamda_1_source, lamda_k_source, p, K, T, M_obs):
-    interval = solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_global, lamda_not_source, lamda_1_source, K, T)
-    CoRT_model = CoRT_builder.CoRT(alpha=lamda_k_source)
+def solve_truncation_CoRT(z_min, z_max, X_target, folds, source_data, a_global, b_global, p, K, T, M_obs):
+    interval = solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_global, p, K, T)
+    CoRT_model = CoRT_builder.CoRT(alpha=0)
     z_k = z_min
     z_interval = []
 
@@ -83,7 +93,7 @@ def solve_truncation_CoRT(z_min, z_max, X_target, folds, source_data, a_global, 
         L_final, R_final, similar_source_index = solve_interval.compute_similar_source(z_k, z_max, interval, K, T)
         target_data_current = {"X": X_target, "y": a_global + z_k * b_global}
         X_combined_new, y_combined_new = CoRT_model.prepare_CoRT_data(similar_source_index, source_data, target_data_current)
-        L_CoRT, R_CoRT, Az = solve_interval.compute_lasso_interval(X_combined_new, a_global, b_global, lamda_k_source, z_k, similar_source_index, source_data)
+        L_CoRT, R_CoRT, Az = solve_interval.compute_lasso_interval(p, X_combined_new, a_global, b_global, z_k, similar_source_index, source_data)
 
         current_num_sources = len(similar_source_index)
         offset = p * current_num_sources

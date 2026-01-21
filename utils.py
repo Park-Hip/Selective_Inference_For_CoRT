@@ -3,6 +3,8 @@ import math
 from mpmath import mp
 from sklearn.linear_model import Lasso
 
+CONST_C = 1.1
+
 def split_target(T, X_target, y_target, n_target):
   folds = []
   fold_size = math.floor(n_target / T)
@@ -20,13 +22,14 @@ def split_target(T, X_target, y_target, n_target):
     folds.append({"X": X_fold, "y": y_fold})
   return folds
 
-def get_u_v(X, a, b, z, lamda):
+def get_u_v(p_original, X, a, b, z):
     n, p = X.shape
     a = a.reshape(-1, 1)
     b = b.reshape(-1, 1)
 
     y = a + b * z
-    clf = Lasso(alpha=lamda, fit_intercept=False, tol=1e-12, max_iter=1000000)
+    lamda = CONST_C * np.sqrt(np.log(p_original) / n)
+    clf = Lasso(alpha=lamda, fit_intercept=False, tol=1e-10, max_iter=100000)
     clf.fit(X, y.flatten())
 
     active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]

@@ -1,6 +1,8 @@
 import numpy as np
 from sklearn.linear_model import Lasso
 
+CONST_C = 1.1
+
 def compute_similar_source(z, z_max, interval, K, T):
     similar_source = []
     L_final = -z_max
@@ -34,7 +36,7 @@ def compute_quadratic_interval(A, B, C, z):
 
     return L, R
 
-def compute_lasso_interval(X, a, b, lamda, z, similar_source_index = None, source_data = None):
+def compute_lasso_interval(p_original, X, a, b, z, similar_source_index = None, source_data = None):
     if similar_source_index != None:
         a_list = []
         b_list = []
@@ -48,8 +50,9 @@ def compute_lasso_interval(X, a, b, lamda, z, similar_source_index = None, sourc
         b = np.hstack(b_list)
     a = a.reshape(-1, 1)
     b = b.reshape(-1, 1)
-    n, p = X.shape
+    n = X.shape[0]
     y = a + b * z
+    lamda = CONST_C * np.sqrt(np.log(p_original) / n)
     clf = Lasso(alpha=lamda, fit_intercept=False, tol=1e-12, max_iter=1000000)
     clf.fit(X, y.flatten())
     active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]

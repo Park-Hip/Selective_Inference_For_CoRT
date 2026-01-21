@@ -3,7 +3,9 @@ import utils
 import solve_interval
 from sklearn.linear_model import Lasso
 
-def get_Z_base_aug(z_obs, folds, source_data, a_global, b_global, lamda_not_source, lamda_1_source, K, T):
+CONST_C = 2
+
+def get_Z_base_aug(p, z_obs, folds, source_data, a_global, b_global, K, T):
   list_R = []
   L_final = - np.inf
   R_final = np.inf
@@ -23,7 +25,7 @@ def get_Z_base_aug(z_obs, folds, source_data, a_global, b_global, lamda_not_sour
     X_target_train = np.vstack(X_train_list)
 
     X_base, a_base, b_base = utils.get_affine_params(X_target_train, train_indices, a_global, b_global)
-    L_base, R_base = solve_interval.compute_lasso_interval(X_base, a_base, b_base, lamda_not_source, z_obs)
+    L_base, R_base = solve_interval.compute_lasso_interval(p, X_base, a_base, b_base, z_obs)
 
     L_final = max(L_final, L_base)
     R_final = min(R_final, R_base)
@@ -32,14 +34,14 @@ def get_Z_base_aug(z_obs, folds, source_data, a_global, b_global, lamda_not_sour
       source_data_k = source_data[k]
 
       X_aug, a_aug, b_aug = utils.get_affine_params(X_target_train, train_indices, a_global, b_global, source_data_k)
-      L_aug, R_aug = solve_interval.compute_lasso_interval(X_aug, a_aug, b_aug, lamda_1_source, z_obs)
+      L_aug, R_aug = solve_interval.compute_lasso_interval(p, X_aug, a_aug, b_aug, z_obs)
 
       L_final = max(L_final, L_aug)
       R_final = min(R_final, R_aug)
 
   return L_final, R_final
 
-def get_Z_val(folds, T, K, a_global, b_global, z_obs, lamda_not_source, lamda_1_source, source_data):
+def get_Z_val(p, folds, T, K, a_global, b_global, z_obs, source_data):
   L_final = - np.inf
   R_final = np.inf
 
@@ -58,7 +60,7 @@ def get_Z_val(folds, T, K, a_global, b_global, z_obs, lamda_not_source, lamda_1_
     train_indices = np.concatenate(train_indices_list) ##
 
     X_base_train, a_base_train, b_base_train = utils.get_affine_params(X_target_train, train_indices, a_global, b_global)
-    u_base, v_base = utils.get_u_v(X_base_train, a_base_train, b_base_train, z_obs, lamda_not_source)
+    u_base, v_base = utils.get_u_v(p, X_base_train, a_base_train, b_base_train, z_obs)
 
     X_val = folds[t]["X"]
     val_indices = fold_indices[t]
@@ -68,7 +70,7 @@ def get_Z_val(folds, T, K, a_global, b_global, z_obs, lamda_not_source, lamda_1_
     for k in range(K):
       source_data_k = source_data[k]
       X_aug_train, a_aug_train, b_aug_train = utils.get_affine_params(X_target_train, train_indices, a_global, b_global, source_data_k)
-      u_aug, v_aug = utils.get_u_v(X_aug_train, a_aug_train, b_aug_train, z_obs, lamda_1_source)
+      u_aug, v_aug = utils.get_u_v(p, X_aug_train, a_aug_train, b_aug_train, z_obs)
       C2_aug, C1_aug, C0_aug = utils.get_loss_coefs(a_base_val, b_base_val, u_aug, v_aug, X_val)
 
       A_dif = C2_aug - C2_base
@@ -81,7 +83,7 @@ def get_Z_val(folds, T, K, a_global, b_global, z_obs, lamda_not_source, lamda_1_
 
   return L_final, R_final
 
-def get_Z_CoRT(X_combined, similar_source_index, lamda, a_global, b_global, source_data, z_obs):
+def get_Z_CoRT(p_original, X_combined, similar_source_index, a_global, b_global, source_data, z_obs):
   a_CoRT_list = []
   b_CoRT_list = []
 
@@ -101,9 +103,10 @@ def get_Z_CoRT(X_combined, similar_source_index, lamda, a_global, b_global, sour
 
   y_combined = a_CoRT + b_CoRT * z_obs
 
-  n, p = X_combined.shape
+  n = X_combined.shape[0]
+  lamda = CONST_C * np.sqrt(np.log(p_original) / n)
 
-  clf = Lasso(alpha=lamda, fit_intercept=False, tol=1e-12, max_iter=100000)
+  clf = Lasso(alpha=lamda, fit_intercept=False, tol=1e-12, max_iter=1000000)
   clf.fit(X_combined, y_combined)
 
   active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]

@@ -3,6 +3,7 @@ from sklearn.linear_model import Lasso
 from sklearn.metrics import mean_squared_error
 import utils as utils
 
+CONST_C = 1.1
 class CoRT:
     def __init__(self, alpha):
         self.alpha = alpha
@@ -50,7 +51,7 @@ class CoRT:
             source_data.append({"X": X_k, "y": y_k})
         return target_data, source_data
 
-    def find_similar_source(self, n_target, K, target_data, source_data, lamda_not_source, lamda_1_source, T, verbose=False):
+    def find_similar_source(self, p, n_target, K, target_data, source_data,T, verbose=False):
         X_target = target_data["X"]
         y_target = target_data["y"]
 
@@ -58,7 +59,6 @@ class CoRT:
         threshold = (T + 1) / 2
         folds = utils.split_target(T, X_target, y_target, n_target)
         cnt = {}
-        # print(self.alpha)
         for t in range(T):
             X_test = folds[t]["X"]
             y_test = folds[t]["y"].ravel()
@@ -67,7 +67,9 @@ class CoRT:
             y_train_list = [folds[i]["y"] for i in range(T) if i != t]
             X_train = np.vstack(X_train_list)
             y_train = np.concatenate(y_train_list).ravel()
-            model_0 = Lasso(alpha=lamda_not_source, fit_intercept=False, tol=1e-10, max_iter = 100000)
+            N = X_train.shape[0]
+            lamda = CONST_C * np.sqrt(np.log(p) / N)
+            model_0 = Lasso(alpha=lamda, fit_intercept=False, tol=1e-10, max_iter = 100000)
             model_0.fit(X_train, y_train)
             pred_0 = model_0.predict(X_test)
             loss_0 = mean_squared_error(y_test, pred_0)
@@ -79,7 +81,9 @@ class CoRT:
                 
                 X_train_0k = np.vstack([X_train, X_source_k])
                 y_train_0k = np.concatenate([y_train, y_source_k])
-                model_0k = Lasso(alpha=lamda_1_source, fit_intercept=False, tol=1e-10, max_iter = 100000)
+                N = X_train_0k.shape[0]
+                lamda = CONST_C * np.sqrt(np.log(p) / N)
+                model_0k = Lasso(alpha= lamda, fit_intercept=False, tol=1e-10, max_iter = 100000)
                 model_0k.fit(X_train_0k, y_train_0k)
                 pred_0k = model_0k.predict(X_test)
 
