@@ -85,7 +85,7 @@ def solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_glob
     return interval
 def solve_truncation_CoRT(z_min, z_max, X_target, folds, source_data, a_global, b_global, p, K, T, M_obs):
     interval = solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_global, p, K, T)
-    CoRT_model = CoRT_builder.CoRT(alpha=0)
+    CoRT_model = CoRT_builder.CoRT()
     z_k = z_min
     z_interval = []
 

@@ -5,9 +5,9 @@ import utils as utils
 
 CONST_C = 1.1
 class CoRT:
-    def __init__(self, alpha):
-        self.alpha = alpha
-
+    def __init__(self):
+        pass
+    
     def gen_data(self, n_target, n_source, p, K, Ka, h, s_vector, s, cov_type):
         if not isinstance(s_vector, np.ndarray):
             s_vector = np.array(s_vector)

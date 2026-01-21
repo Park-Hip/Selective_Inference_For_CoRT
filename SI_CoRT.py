@@ -9,7 +9,7 @@ import CoRT_builder
 CONST_C = 1.1
 
 def SI_parametric(n_target, p, K, target_data, source_data, T, s_len):
-    CoRT_model = CoRT_builder.CoRT(alpha=0)
+    CoRT_model = CoRT_builder.CoRT()
     similar_source_index = CoRT_model.find_similar_source(p, n_target, K, target_data, source_data, T=T, verbose=False)
     X_combined, y_combined = CoRT_model.prepare_CoRT_data(similar_source_index, source_data, target_data)
 
@@ -57,7 +57,7 @@ def SI_parametric(n_target, p, K, target_data, source_data, T, s_len):
     return result_dict
 
 def SI_over_conditioning(n_target, p, K, target_data, source_data, T, s_len):
-    CoRT_model = CoRT_builder.CoRT(alpha=0)
+    CoRT_model = CoRT_builder.CoRT()
     similar_source_index = CoRT_model.find_similar_source(p, n_target, K, target_data, source_data, T=T, verbose=False)
     X_combined, y_combined = CoRT_model.prepare_CoRT_data(similar_source_index, source_data, target_data)
 

@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore")
 
 def parametric(iteration, n_target, n_source, p, K, Ka, h, alpha, T, s_len, s_vector):
     para_results_storage = []
-    CoRT_model = CoRT_builder.CoRT(0)
+    CoRT_model = CoRT_builder.CoRT()
 
     cnt1 = 0
     cnt2 = 0
