@@ -6,7 +6,7 @@ import parametric
 import over_conditioning
 import CoRT_builder 
 
-CONST_C = 1.1
+CONST_C = 1.5
 
 def SI_parametric(n_target, p, K, target_data, source_data, T, s_len):
     CoRT_model = CoRT_builder.CoRT()

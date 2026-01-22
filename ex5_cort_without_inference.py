@@ -7,7 +7,7 @@ from scipy.stats import norm
 CONST_C = 1.1
 
 def cort_without_inference(iteration, n_target, n_source, p, K, Ka, h, alpha, T, s_len, s_vector):
-    CoRT_model = CoRT_builder.CoRT(0)
+    CoRT_model = CoRT_builder.CoRT()
     para_results_storage = []
 
     for i in range(0, iteration):

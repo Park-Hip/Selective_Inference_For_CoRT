@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.linear_model import Lasso
 
-CONST_C = 1.1
+CONST_C = 1.5
 
 def compute_similar_source(z, z_max, interval, K, T):
     similar_source = []

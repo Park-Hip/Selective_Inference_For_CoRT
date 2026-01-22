@@ -7,14 +7,14 @@ from scipy.stats import norm
 CONST_C = 1.1
 
 def bonferroni(iteration, n_target, n_source, p, K, Ka, h, alpha, T, s_len, s_vector):
-    CoRT_model = CoRT_builder.CoRT(0)
+    CoRT_model = CoRT_builder.CoRT()
     para_results_storage = []
 
     for i in range(iteration):
         if i % 50 == 0:
             print(f"Iteration {i}")
         target_data, source_data = CoRT_model.gen_data(n_target, n_source, p, K, Ka, h, s_vector, s_len, "AR")
-        CoRT_model = CoRT_builder.CoRT(0)
+        CoRT_model = CoRT_builder.CoRT()
         similar_source_index = CoRT_model.find_similar_source(p, n_target, K, target_data, source_data, T=T, verbose=False)
         X_combined, y_combined = CoRT_model.prepare_CoRT_data(similar_source_index, source_data, target_data)
 
