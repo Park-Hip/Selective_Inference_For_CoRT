@@ -1,9 +1,10 @@
 import numpy as np
 import math
 from mpmath import mp
+mp.dps = 500
 from sklearn.linear_model import Lasso
 
-CONST_C = 1.1
+CONST_C = 25
 
 def split_target(T, X_target, y_target, n_target):
   folds = []
@@ -28,25 +29,23 @@ def get_u_v(p_original, X, a, b, z):
     b = b.reshape(-1, 1)
 
     y = a + b * z
-    lamda = CONST_C * np.sqrt(np.log(p_original) / n)
-    clf = Lasso(alpha=lamda, fit_intercept=False, tol=1e-10, max_iter=100000)
+    lamda = CONST_C
+    clf = Lasso(alpha=lamda / n, fit_intercept=False, tol=1e-14, max_iter = 1000000)
     clf.fit(X, y.flatten())
-
-    active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]
-    inactive_indices = [idx for idx, coef in enumerate(clf.coef_) if coef == 0]
+    threshold = 1e-9
+    active_indices = [idx for idx, coef in enumerate(clf.coef_) if np.abs(coef) > threshold]
+    inactive_indices = [idx for idx, coef in enumerate(clf.coef_) if np.abs(coef) <= threshold]
     m = len(active_indices)
 
     u_full = np.zeros((p, 1))
     v_full = np.zeros((p, 1))
-
-    lamda_new = lamda * n
 
     if m > 0:
       X_M = X[:, active_indices]
       X_Mc = X[:, inactive_indices]
       s_M = np.sign(clf.coef_[active_indices]).reshape(-1, 1)
 
-      u_active = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ a - lamda_new * s_M)
+      u_active = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ a - lamda * s_M)
       v_active = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ b)
 
       u_full[active_indices] = u_active
@@ -132,6 +131,8 @@ def pivot(z_interval, etaj, etajTy, tn_mu, cov):
             num += mp.ncdf(z_norm) - mp.ncdf(z_l)
 
     if den == 0:
+        print(f"len(z_interval): {len(z_interval)}")
+        print("denominator is zero in pivot calculation")
         return None
 
     conditional_cdf = num / den
@@ -160,7 +161,6 @@ def computed_truncated_cdf(L, R, z, mu, sigma):
   denominator = cdf_R - cdf_L
 
   if denominator == 0:
-      print(norm_L, norm_R)
       return None
   
   numerator = cdf_y - cdf_L

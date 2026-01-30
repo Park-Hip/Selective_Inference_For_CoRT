@@ -1,0 +1,28 @@
+[
+    {
+        "configs": {
+            "method": "Bonferroni",
+            "n_target": 40,
+            "n_source": 80,
+            "p": 200,
+            "alpha": 0.05,
+            "iteration": 1000,
+            "signal": 0.5,
+            "h": 10,
+            "Ka": 3,
+            "K": 5,
+            "T": 5,
+            "s_len": 10
+        },
+        "metrics": {
+            "fpr": 0.0,
+            "tpr": 0.061342592592592594
+        },
+        "raw_counts": {
+            "is_signal_cases": 864,
+            "not_signal_cases": 136,
+            "true_positives": 53,
+            "false_positives": 0
+        }
+    }
+]

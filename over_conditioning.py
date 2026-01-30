@@ -3,7 +3,7 @@ import utils
 import solve_interval
 from sklearn.linear_model import Lasso
 
-CONST_C = 2
+CONST_C = 1.2
 
 def get_Z_base_aug(p, z_obs, folds, source_data, a_global, b_global, K, T):
   list_R = []
@@ -105,8 +105,7 @@ def get_Z_CoRT(p_original, X_combined, similar_source_index, a_global, b_global,
 
   n = X_combined.shape[0]
   lamda = CONST_C * np.sqrt(np.log(p_original) / n)
-
-  clf = Lasso(alpha=lamda, fit_intercept=False, tol=1e-12, max_iter=1000000)
+  clf = Lasso(alpha=lamda, fit_intercept=False, tol=1e-12, max_iter=100000)
   clf.fit(X_combined, y_combined)
 
   active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]

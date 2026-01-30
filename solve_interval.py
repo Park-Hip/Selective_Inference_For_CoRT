@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.linear_model import Lasso
 
-CONST_C = 1.1
+CONST_C = 25
 
 def compute_similar_source(z, z_max, interval, K, T):
     similar_source = []
@@ -52,31 +52,29 @@ def compute_lasso_interval(p_original, X, a, b, z, similar_source_index = None, 
     b = b.reshape(-1, 1)
     n = X.shape[0]
     y = a + b * z
-    lamda = CONST_C * np.sqrt(np.log(p_original) / n)
-    clf = Lasso(alpha=lamda, fit_intercept=False, tol=1e-12, max_iter=1000000)
+    lamda = CONST_C
+    clf = Lasso(alpha=lamda / n, fit_intercept=False, tol=1e-14, max_iter = 1000000)
     clf.fit(X, y.flatten())
-    active_indices = [idx for idx, coef in enumerate(clf.coef_) if coef != 0]
-    inactive_indices = [idx for idx, coef in enumerate(clf.coef_) if coef == 0]
+    threshold = 1e-9
+    active_indices = [idx for idx, coef in enumerate(clf.coef_) if np.abs(coef) > threshold]
+    inactive_indices = [idx for idx, coef in enumerate(clf.coef_) if np.abs(coef) <= threshold]
     m = len(active_indices)
-    L_model = -np.inf
-    R_model = np.inf
-    lamda_new = lamda * n
     if m == 0:
-      p = (1 / lamda_new) * X.T @ a
-      q = (1 / lamda_new) * X.T @ b
+      p = (1 / lamda) * X.T @ a
+      q = (1 / lamda) * X.T @ b
       A = np.concatenate([q.flatten(), -q.flatten()])
       B = np.concatenate([(1 - p).flatten(), (1 + p).flatten()])
-
     else:
       X_M = X[:, active_indices]
       X_Mc = X[:, inactive_indices]
       s_M = np.sign(clf.coef_[active_indices]).reshape(-1,1)
 
       P_M = X_M @ np.linalg.pinv(X_M.T @ X_M) @ X_M.T
-      u = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ a - lamda_new * s_M)
+      u = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ a - lamda * s_M)
       v = np.linalg.pinv(X_M.T @ X_M) @ (X_M.T @ b)
-      p = (1/lamda_new) * X_Mc.T @ (np.eye(n) - P_M) @ a + X_Mc.T @ X_M @ np.linalg.pinv(X_M.T @ X_M) @ s_M
-      q = (1/lamda_new) * X_Mc.T @ (np.eye(n) - P_M) @ b
+      p = (1 / lamda) * X_Mc.T @ (np.eye(n) - P_M) @ a + X_Mc.T @ X_M @ np.linalg.pinv(X_M.T @ X_M) @ s_M
+      q = (1 / lamda) * X_Mc.T @ (np.eye(n) - P_M) @ b
+
       A1 = - np.diag(s_M.flatten()) @ v
       B1 = np.diag(s_M.flatten()) @ u
       ones = np.ones((len(inactive_indices), 1))
@@ -84,17 +82,25 @@ def compute_lasso_interval(p_original, X, a, b, z, similar_source_index = None, 
       B2 = ones - p
       A3 = -q
       B3 = ones + p
+
       A = np.concatenate([A1.flatten(), A2.flatten(), A3.flatten()])
       B = np.concatenate([B1.flatten(), B2.flatten(), B3.flatten()])
-    pos_idx = A > 1e-9
+    
+    L_model = -np.inf
+    R_model = np.inf
+    pos_idx = A > 1e-10
     if np.any(pos_idx):
       upper_bound = B[pos_idx] / A [pos_idx]
       R_model = np.min(upper_bound)
-    neg_idx = A < -1e-9
+    neg_idx = A < -1e-10
     if np.any(neg_idx):
       lower_bound = B[neg_idx] / A[neg_idx]
       L_model = np.max(lower_bound)
 
     if similar_source_index == None:
        return L_model, R_model
+    
     return L_model, R_model, active_indices
+
+
+

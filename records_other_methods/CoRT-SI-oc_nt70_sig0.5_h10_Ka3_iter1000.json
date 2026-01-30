@@ -1,0 +1,28 @@
+[
+    {
+        "configs": {
+            "method": "CoRT-SI-oc",
+            "n_target": 70,
+            "n_source": 80,
+            "p": 200,
+            "alpha": 0.05,
+            "iteration": 1000,
+            "signal": 0.5,
+            "h": 10,
+            "Ka": 3,
+            "K": 5,
+            "T": 5,
+            "s_len": 10
+        },
+        "metrics": {
+            "fpr": 0.025,
+            "tpr": 0.04659090909090909
+        },
+        "raw_counts": {
+            "is_signal_cases": 880,
+            "not_signal_cases": 120,
+            "true_positives": 41,
+            "false_positives": 3
+        }
+    }
+]

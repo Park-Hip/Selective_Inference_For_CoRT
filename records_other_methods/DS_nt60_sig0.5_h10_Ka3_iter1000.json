@@ -1,0 +1,28 @@
+[
+    {
+        "configs": {
+            "method": "DS",
+            "n_target": 60,
+            "n_source": 80,
+            "p": 200,
+            "alpha": 0.05,
+            "iteration": 1000,
+            "signal": 0.5,
+            "h": 10,
+            "Ka": 3,
+            "K": 5,
+            "T": 5,
+            "s_len": 10
+        },
+        "metrics": {
+            "fpr": 0.03763440860215054,
+            "tpr": 0.3918918918918919
+        },
+        "raw_counts": {
+            "is_signal_cases": 814,
+            "not_signal_cases": 186,
+            "true_positives": 319,
+            "false_positives": 7
+        }
+    }
+]

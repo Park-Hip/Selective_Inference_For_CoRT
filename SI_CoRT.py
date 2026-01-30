@@ -6,7 +6,7 @@ import parametric
 import over_conditioning
 import CoRT_builder 
 
-CONST_C = 1.1
+CONST_C = 25
 
 def SI_parametric(n_target, p, K, target_data, source_data, T, s_len):
     CoRT_model = CoRT_builder.CoRT()
@@ -14,13 +14,13 @@ def SI_parametric(n_target, p, K, target_data, source_data, T, s_len):
     X_combined, y_combined = CoRT_model.prepare_CoRT_data(similar_source_index, source_data, target_data)
 
     N = X_combined.shape[0]
-    lamda = CONST_C * np.sqrt(np.log(p)/ N)
+    lamda = CONST_C
 
-    model = Lasso(alpha=lamda, fit_intercept=False, tol=1e-12, max_iter = 1000000)
+    model = Lasso(alpha=lamda / N, fit_intercept=False, tol=1e-14, max_iter = 1000000)
     model.fit(X_combined, y_combined.ravel())
     beta_hat_target = model.coef_[-p:]
-
-    M_obs = np.array([i for i, b in enumerate(beta_hat_target) if b != 0])
+    threshold = 1e-9
+    M_obs = np.array([i for i, b in enumerate(beta_hat_target) if np.abs(b) > threshold])
 
     if len(M_obs) == 0:
         print("Lasso selected no features. Skipping.")
@@ -64,12 +64,12 @@ def SI_over_conditioning(n_target, p, K, target_data, source_data, T, s_len):
     N = X_combined.shape[0]
     lamda = CONST_C * np.sqrt(np.log(p)/ N)
 
-    model = Lasso(alpha=lamda, fit_intercept=False, tol=1e-12, max_iter = 1000000)
+    model = Lasso(alpha=lamda, fit_intercept=False, tol=1e-14, max_iter = 1000000)
     model.fit(X_combined, y_combined.ravel())
     beta_hat_target = model.coef_[-p:]
 
     M_obs = np.array([i for i, b in enumerate(beta_hat_target) if b != 0])
-
+    
     if len(M_obs) == 0:
         print(f"Iteration {iter}: Lasso selected no features. Skipping.")
         return None

@@ -3,7 +3,7 @@ from sklearn.linear_model import Lasso
 from sklearn.metrics import mean_squared_error
 import utils as utils
 
-CONST_C = 1.1
+CONST_C = 25
 class CoRT:
     def __init__(self):
         pass
@@ -68,8 +68,8 @@ class CoRT:
             X_train = np.vstack(X_train_list)
             y_train = np.concatenate(y_train_list).ravel()
             N = X_train.shape[0]
-            lamda = CONST_C * np.sqrt(np.log(p) / N)
-            model_0 = Lasso(alpha=lamda, fit_intercept=False, tol=1e-10, max_iter = 100000)
+            lamda = CONST_C
+            model_0 = Lasso(alpha=lamda / N, fit_intercept=False, tol=1e-14, max_iter = 1000000)
             model_0.fit(X_train, y_train)
             pred_0 = model_0.predict(X_test)
             loss_0 = mean_squared_error(y_test, pred_0)
@@ -82,8 +82,8 @@ class CoRT:
                 X_train_0k = np.vstack([X_train, X_source_k])
                 y_train_0k = np.concatenate([y_train, y_source_k])
                 N = X_train_0k.shape[0]
-                lamda = CONST_C * np.sqrt(np.log(p) / N)
-                model_0k = Lasso(alpha= lamda, fit_intercept=False, tol=1e-10, max_iter = 100000)
+                lamda = CONST_C
+                model_0k = Lasso(alpha= lamda / N, fit_intercept=False, tol=1e-14, max_iter = 1000000)
                 model_0k.fit(X_train_0k, y_train_0k)
                 pred_0k = model_0k.predict(X_test)
 

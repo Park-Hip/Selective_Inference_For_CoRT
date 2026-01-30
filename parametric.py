@@ -75,13 +75,13 @@ def solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_glob
                         interval[(k, t)].append([l, r, cnt])
                         if z3 > R_val:
                             print(f"R_val, z3: {R_val}, {z3}")
-                        z3 = R_val + 1e-5
+                        z3 = R_val + 1e-4
                     if z2 > R_aug:
                         print(f"R_aug, z2: {R_aug}, {z2}")
-                    z2 = R_aug + 1e-5
+                    z2 = R_aug + 1e-4
                 if z1 > R_base:
                     print(f"R_base, z1: {R_base}, {z1}")
-                z1 = R_base + 1e-5
+                z1 = R_base + 1e-4
     return interval
 def solve_truncation_CoRT(z_min, z_max, X_target, folds, source_data, a_global, b_global, p, K, T, M_obs):
     interval = solve_truncation_interval(z_min, z_max, folds, source_data, a_global, b_global, p, K, T)
@@ -105,9 +105,9 @@ def solve_truncation_CoRT(z_min, z_max, X_target, folds, source_data, a_global, 
 
         if np.array_equal(M_current, M_obs) == True:
             z_interval.append([z_k, R_min])
-        # print(z_k)
+        # print(z_k, R_min)
 
-        z_k = R_min + 1e-5
+        z_k = R_min + 1e-4
     return z_interval
 
     

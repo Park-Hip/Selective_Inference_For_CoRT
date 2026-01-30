@@ -4,10 +4,10 @@ import utils
 from sklearn.linear_model import Lasso
 from scipy.stats import norm
 
-CONST_C = 1.1
+CONST_C = 1.2
 
 def data_splitting(iteration, n_target, n_source, p, K, Ka, h, alpha, T, s_len, s_vector):
-    CoRT_model = CoRT_builder.CoRT(0)
+    CoRT_model = CoRT_builder.CoRT()
     para_results_storage = []
 
     for i in range(0, iteration):
@@ -24,8 +24,9 @@ def data_splitting(iteration, n_target, n_source, p, K, Ka, h, alpha, T, s_len, 
 
         similar_source_index = CoRT_model.find_similar_source(p, n, K, target_data_train, source_data, T=T, verbose=False)
         X_combined, y_combined = CoRT_model.prepare_CoRT_data(similar_source_index, source_data, target_data_train)
-        lamda = CONST_C * np.sqrt(np.log(p) / n)
-        model = Lasso(alpha=lamda, fit_intercept=False, tol=1e-12, max_iter=1000000)
+        N = X_combined.shape[0]
+        lamda = CONST_C * np.sqrt(np.log(p) / N)
+        model = Lasso(alpha=lamda, fit_intercept=False, tol=1e-12, max_iter=100000)
         model.fit(X_combined, y_combined.ravel())
         beta_hat_target = model.coef_[-p:]
 
@@ -60,7 +61,10 @@ def data_splitting(iteration, n_target, n_source, p, K, Ka, h, alpha, T, s_len, 
     not_signal_cases = [r for r in para_results_storage if not r['is_signal']]
 
     false_positives = sum(1 for c in not_signal_cases if c['p_value'] <= alpha)
-    fpr = false_positives / len(not_signal_cases)
+    if len(not_signal_cases) > 0: 
+        fpr = false_positives / len(not_signal_cases)
+    else:
+        fpr = 0.0
     true_positives = sum(1 for r in is_signal_cases if r['p_value'] <= alpha)
     tpr = true_positives / len(is_signal_cases)
     return fpr, tpr

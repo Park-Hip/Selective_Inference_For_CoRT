@@ -1,0 +1,28 @@
+[
+    {
+        "configs": {
+            "method": "Naive",
+            "n_target": 40,
+            "n_source": 80,
+            "p": 200,
+            "alpha": 0.05,
+            "iteration": 1000,
+            "signal": 0.5,
+            "h": 10,
+            "Ka": 1,
+            "K": 7,
+            "T": 5,
+            "s_len": 10
+        },
+        "metrics": {
+            "fpr": 0.18048780487804877,
+            "tpr": 0.5257861635220126
+        },
+        "raw_counts": {
+            "is_signal_cases": 795,
+            "not_signal_cases": 205,
+            "true_positives": 418,
+            "false_positives": 37
+        }
+    }
+]
