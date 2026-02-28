@@ -1,0 +1,59 @@
+{
+    "SI_parametric": {
+        "5": [
+            0.0,
+            null,
+            null,
+            null,
+            0.9984164001477948,
+            null,
+            null,
+            null,
+            null
+        ],
+        "24": [
+            null,
+            null,
+            null,
+            null,
+            0.08345283706330203,
+            null,
+            null,
+            null,
+            null
+        ],
+        "25": [
+            null,
+            null,
+            null,
+            0.43369130921279736,
+            null,
+            0.4894062026793305,
+            null,
+            null,
+            null
+        ],
+        "26": [
+            null,
+            0.6881336439958669,
+            null,
+            0.8342833655512811,
+            null,
+            null,
+            null,
+            null,
+            null
+        ],
+        "28": [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null
+        ]
+    }
+}
