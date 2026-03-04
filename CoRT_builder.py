@@ -2,8 +2,7 @@ import numpy as np
 from sklearn.linear_model import Lasso
 from sklearn.metrics import mean_squared_error
 import utils as utils
-
-CONST_C = 50 
+from configs import CONST_C
 
 class CoRT:
     def __init__(self):

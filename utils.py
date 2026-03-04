@@ -2,9 +2,9 @@ import numpy as np
 import math
 from mpmath import mp
 from sklearn.linear_model import Lasso
+from configs import CONST_C
 
 mp.dps = 500
-CONST_C = 50
 
 def split_target(T, X_target, y_target, n_target):
   folds = []

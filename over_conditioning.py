@@ -2,8 +2,7 @@ import numpy as np
 import utils
 import solve_interval
 from sklearn.linear_model import Lasso
-
-CONST_C = 50
+from configs import CONST_C
 
 def get_Z_base_aug(p, z_obs, folds, source_data, a_global, b_global, K, T):
   list_R = []
