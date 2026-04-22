@@ -40,10 +40,12 @@ def compute_lasso_interval(p_original, X, a, b, z, similar_source_index = None, 
         b_list = []
         for k in similar_source_index:
             y_k = source_data[k]["y"].ravel()
-            a_list.append(y_k)
+            n_k = source_data[k]["y"].shape[0] #
+            a_list.append(y_k / np.sqrt(n_k))
             b_list.append(np.zeros(len(y_k)))
-        a_list.append(a.ravel())
-        b_list.append(b.ravel())
+        n_0 = a.shape[0]
+        a_list.append(a.ravel() / np.sqrt(n_0)) #
+        b_list.append(b.ravel() / np.sqrt(n_0)) #
         a = np.hstack(a_list)
         b = np.hstack(b_list)
     a = a.reshape(-1, 1)

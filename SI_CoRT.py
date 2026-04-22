@@ -28,11 +28,18 @@ def SI_parametric(n_target, p, K, target_data, source_data, T, s_len):
 
     X_target = target_data["X"]
     y_target = target_data["y"]
-    X_active, X_inactive = utils.get_active_X(beta_hat_target, X_target)
 
+    # X_target = target_data["X"]
+    # n = X_target.shape[0]
+    # X_target = X_target / np.sqrt(n)
+    # y_target = target_data["y"]
+    # y_target = y_target / np.sqrt(n)
+
+    X_active, X_inactive = utils.get_active_X(beta_hat_target, X_target)
     etaj, etajTy = utils.construct_test_statistic(y_target, j, X_active)
 
-    Sigma = np.eye(n_target)
+    Sigma = np.eye(n_target) 
+    # Sigma = np.eye(n_target) / n
     b_global = Sigma @ etaj @ np.linalg.pinv(etaj.T @ Sigma @ etaj)
     a_global = (Sigma - b_global @ etaj.T) @ y_target
 

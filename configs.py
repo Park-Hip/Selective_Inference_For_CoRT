@@ -1,1 +1,1 @@
-CONST_C = 50
+CONST_C = 1

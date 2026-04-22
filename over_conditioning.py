@@ -88,7 +88,8 @@ def get_Z_CoRT(p_original, X_combined, similar_source_index, a_global, b_global,
 
   for k in similar_source_index:
     y_k = source_data[k]["y"].ravel()
-    a_CoRT_list.append(y_k)
+    n_k = source_data[k]["y"].shape[0] #
+    a_CoRT_list.append(y_k / np.sqrt(n_k))
     b_CoRT_list.append(np.zeros(len(y_k)))
 
   a_CoRT_list.append(a_global.ravel())

@@ -108,9 +108,15 @@ class CoRT:
         return similar_source_index
 
     def prepare_CoRT_data(self, similar_source_index, source_data, target_data):
+        # X_target = target_data["X"]
+        # y_target = target_data["y"].reshape(-1, 1)
+        # p = X_target.shape[1]
+
         X_target = target_data["X"]
+        n, p = X_target.shape
+        X_target = X_target / np.sqrt(n)
         y_target = target_data["y"].reshape(-1, 1)
-        p = X_target.shape[1]
+        y_target = y_target / np.sqrt(n)
 
         similar_source_data = [source_data[i] for i in similar_source_index]
         similar_source_count = len(similar_source_data)
@@ -120,8 +126,14 @@ class CoRT:
         y_combined = []
 
         for i, data in enumerate(similar_source_data):
+            # X_k = data["X"]
+            # y_k = data["y"].reshape(-1, 1)
+
             X_k = data["X"]
+            n_k, p_k = X_k.shape
+            X_k = X_k / np.sqrt(n_k) 
             y_k = data["y"].reshape(-1, 1)
+            y_k = y_k / np.sqrt(n_k)
 
             left_cols = i * p
             right_cols = total_cols - left_cols - 2 * p
